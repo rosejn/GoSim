@@ -1,0 +1,13 @@
+#!/usr/bin/env ruby
+
+$LOAD_PATH.unshift(File.expand_path(File.join(File.dirname(__FILE__), 'lib')))
+require 'gosim/view'
+
+if ARGV[0] and File.exists?(ARGV[0])
+  $LOAD_PATH.unshift(File.expand_path(File.dirname(ARGV[0])))
+
+  puts "Loading simulation file: #{File.basename(ARGV[0])}"
+  require ARGV[0]
+end
+
+GoSim::View.instance.run
