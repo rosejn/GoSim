@@ -41,7 +41,7 @@ class TestNetworkSimulation < Test::Unit::TestCase
     @sim = GoSim::Simulation.instance
     @topo = GoSim::Net::Topology.instance
     
-    @sim.log.level = Logger::INFO
+    @sim.quiet
     @sim.trace.level = Logger::INFO
   end
 

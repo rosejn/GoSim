@@ -15,7 +15,7 @@ class Producer < GoSim::Entity
       @sim.schedule_event(@sid, t * 10, Item.new("foo", :receive)) 
     end
 
-    @dataset = GoSim::DataSet.new(:producer, "test/output")
+    @dataset = GoSim::DataSet.new(:producer, File.join(File.dirname(__FILE__), "output"))
   end
 
   def handle_item(event)
@@ -55,6 +55,7 @@ end
 class TestSimulation < Test::Unit::TestCase
   def setup
     @sim = GoSim::Simulation.reset
+    @sim.quiet
 
     # turn down logging so we don't see debug messages during unit testing
     @sim.trace_log = nil
@@ -100,13 +101,14 @@ class TestSimulation < Test::Unit::TestCase
   end
 
   def test_timeouts
-    #@sim.log.level = Logger::DEBUG
+    #@sim.verbose
     sim_timer = TimerOuter.new
     @sim.run
     assert_equal(5, sim_timer.timer_count)
   end
 
   def test_sim_run
+    #@sim.verbose
     sim_timer = TimerOuter.new
     @sim.run(3 * TimerOuter::TIMEOUT_TIME)
     assert_equal(3, sim_timer.timer_count)

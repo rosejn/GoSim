@@ -3,6 +3,8 @@
 
 module GoSim
   class SimTimeout
+    include Base
+
     attr_reader :time, :is_periodic, :active
 
     def initialize(sid, time, is_periodic, block)
@@ -18,25 +20,27 @@ module GoSim
     def reset 
       @active = true
       @sim.schedule_event(@sid, @time, self)
-      @sim.log.debug "Timeout started for #{@sid} in #{@time} units"
+      log.debug "Timeout started for #{@sid} in #{@time} units"
     end
     alias start reset
 
     def cancel
       @active = false
-      @sim.log.debug "Timeout stopped for #{@sid}"
+      log.debug "Timeout stopped for #{@sid}"
     end
     alias stop cancel
 
     def run
-      puts "#{@sid}: running timeout"
+      log.debug "sid -> #{@sid} running timeout"
       # Test twice in case the timeout was canceled in the block.
-      ret = @block.call(self) if @active
-      reset if @active and @is_periodic and ret
+      @block.call(self) if @active
+      reset if @active and @is_periodic
     end
   end
 
   class Entity 
+    include Base
+
     attr_reader :sid
 
     @@sid_counter = 0
@@ -73,12 +77,13 @@ module GoSim
     end
   end
 
-  Event = Struct.new(:dest_id, :time, :data)
+  Event = Struct.new(:event_id, :dest_id, :time, :data)
 
   class Simulation
+    include Base
     include Singleton
 
-    attr_reader :trace, :time, :log
+    attr_reader :trace, :time
 
     class << self
       def run(end_time = 999999999)
@@ -91,9 +96,7 @@ module GoSim
     end
 
     def initialize
-      @log = Logger.new(STDERR)
       @trace = Logger.new(STDOUT)
-      @log.level = Logger::ERROR
 
       reset
     end
@@ -104,6 +107,7 @@ module GoSim
       @running = false
       @event_queue = PQueue.new(proc {|x,y| x.time < y.time})
       @entities = {}
+      @handlers = {}
 
       Entity.reset
 
@@ -112,6 +116,11 @@ module GoSim
 
     def register_entity(sid, entity)
       @entities[sid] = entity
+      @handlers[sid] = {}
+    end
+
+    def add_handler(sid, event_id, &block)
+      @handlers[sid][event_id] = block
     end
 
     def queue_size
@@ -122,37 +131,30 @@ module GoSim
       begin
         @trace = Logger.new(device)
       rescue Exception => exp
-        @log.error "Must pass a filename (String) or IO object as the trace device:\n  " + exp 
+        log.error "Must pass a filename (String) or IO object as the trace device:\n  " + exp 
         raise
       end
     end
     alias trace_log= trace_log
 
     # Schedule a new event by putting it into the event queue
-    def schedule_event(dest_id, time, data)
-      @log.debug "Scheduling new #{data.class} event: #{@time + time}"
-      @event_queue.push(Event.new(dest_id, @time + time, data))
+    def schedule_event(event_id, dest_id, time, data)
+      log.debug "#{dest_id} is scheduling #{data.class} for #{@time + time}"
+      @event_queue.push(Event.new(event_id, dest_id, @time + time, data))
     end
 
     def run(end_time = 999999999) 
       return if @running   # Disallow after starting once
       @running = true
 
-      @log.debug("Running simulation until: #{end_time}")
+      log.debug("Running simulation until: #{end_time}")
       
       while(@running and (cur_event = @event_queue.pop) and (cur_event.time <= end_time))
-        @log.debug("Handling %s event at %d\n" % [cur_event.data.class, cur_event.time])
+        log.debug("Handling %s event at %d\n" % [cur_event.data.class, cur_event.time])
 
         @time = last_time = cur_event.time
 
-        # Figure out the method name
-        class_reg = /[::]?(\w*)$/
-        class_name = class_reg.match(cur_event.data.class.to_s)[1]
-        method = 'handle_' + class_name.reverse.
-          scan(%r/[A-Z]+|[^A-Z]*[A-Z]+?/).reverse.
-          map{|word| word.reverse.downcase }.join('_')
-
-        @entities[cur_event.dest_id].send(method.to_sym, cur_event.data) 
+        @entities[cur_event.dest_id][event_id].call(cur_event.data) 
       end
 
       @running = false
