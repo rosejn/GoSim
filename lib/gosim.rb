@@ -10,8 +10,8 @@ module GoSim
     @@log.level = Logger::FATAL
 
     # So that all derived classes have an easy accessor
-    def log
-      @@log
+    def log(*args)
+      @@log.debug(*args)
     end
 
     # Turn down logging all the way (nice for unit tests etc...)

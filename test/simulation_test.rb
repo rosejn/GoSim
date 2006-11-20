@@ -12,14 +12,16 @@ class Producer < GoSim::Entity
 
     # Schedule a bunch of new product events.
     num_items.times do |t| 
-      @sim.schedule_event(@sid, t * 10, Item.new("foo", :receive)) 
+      @sim.schedule_event(:item, @sid, t * 10, Item.new("foo", :receive)) 
     end
 
-    @dataset = GoSim::DataSet.new(:producer, File.join(File.dirname(__FILE__), "output"))
+    dir_name = File.join(File.dirname(__FILE__), "output")
+    Dir.mkdir(dir_name) unless File.exists?(dir_name)
+    @dataset = GoSim::DataSet.new(:producer, dir_name)
   end
 
   def handle_item(event)
-    @sim.schedule_event(@neighbor, 5, event)
+    @sim.schedule_event(:item, @neighbor, 5, event)
     @dataset.log(@sid, event.name)
   end
 end
@@ -63,7 +65,7 @@ class TestSimulation < Test::Unit::TestCase
 
   def test_logging
     @sim.trace.level = Logger::FATAL
-    @sim.log.level = Logger::FATAL
+    @sim.quiet 
     assert_raise(TypeError, "trace_log method not raising correct exception") do
       @sim.trace_log(123)
     end

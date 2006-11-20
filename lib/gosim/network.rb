@@ -2,7 +2,7 @@ module GoSim
   module Net
     MEDIAN_LATENCY = 5
 
-    GSNetworkPacket = Struct.new(:src, :dest, :data)
+    GSNetworkPacket = Struct.new(:id, :src, :dest, :data)
     FailedPacket = Struct.new(:dest, :data)
     LivenessPacket = Struct.new(:alive)
 
@@ -21,9 +21,12 @@ module GoSim
         @node_status[nid] = status
       end
 
-      def send_packet(src, receivers, packet)
+      def send_packet(id, src, receivers, packet)
         [*receivers].each do |receiver| 
-          @sim.schedule_event(@sid, @median_latency, GSNetworkPacket.new(src, receiver, packet)) 
+          @sim.schedule_event(:gs_network_packet, 
+                              @sid, 
+                              @median_latency, 
+                              GSNetworkPacket.new(id, src, receiver, packet)) 
         end
       end
 
@@ -31,9 +34,10 @@ module GoSim
 
       def handle_gs_network_packet(packet)
         if @node_status[packet.dest]
-          @sim.schedule_event(packet.dest, 0, packet.data)
+          @sim.schedule_event(packet.id, packet.dest, 0, packet.data)
         else
-          @sim.schedule_event(packet.src, 0, FailedPacket.new(packet.dest, packet.data))
+          @sim.schedule_event(:failed_packet, packet.src, 0, 
+                              FailedPacket.new(packet.dest, packet.data))
         end
       end
     end
@@ -73,8 +77,8 @@ module GoSim
       end
       alias alive alive=
 
-      def send_packet(receivers, pkt)
-        @topo.send_packet(@sid, receivers, pkt)
+      def send_packet(id, receivers, pkt)
+        @topo.send_packet(id, @sid, receivers, pkt)
       end
 
       # Implement this method to do something specific for your application.

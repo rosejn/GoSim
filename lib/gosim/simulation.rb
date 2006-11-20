@@ -2,42 +2,6 @@
 #require 'breakpoint'
 
 module GoSim
-  class SimTimeout
-    include Base
-
-    attr_reader :time, :is_periodic, :active
-
-    def initialize(sid, time, is_periodic, block)
-      @sim = GoSim::Simulation.instance
-      @sid = sid
-      @time = time
-      @is_periodic = is_periodic
-      @block = block
-      @active = true
-      reset
-    end
-
-    def reset 
-      @active = true
-      @sim.schedule_event(@sid, @time, self)
-      log.debug "Timeout started for #{@sid} in #{@time} units"
-    end
-    alias start reset
-
-    def cancel
-      @active = false
-      log.debug "Timeout stopped for #{@sid}"
-    end
-    alias stop cancel
-
-    def run
-      log.debug "sid -> #{@sid} running timeout"
-      # Test twice in case the timeout was canceled in the block.
-      @block.call(self) if @active
-      reset if @active and @is_periodic
-    end
-  end
-
   class Entity 
     include Base
 
@@ -66,8 +30,8 @@ module GoSim
     end
 
     def set_timeout(time, is_periodic = false, &block)
-      SimTimeout.new(@sid, time, is_periodic, block)
-      puts "#{@sid}: Timeout set for #{time}"
+      SimTimeout.new(time, is_periodic, block)
+      #log "#{@sid}: Timeout set for #{time}"
     end
 
     private
@@ -76,6 +40,44 @@ module GoSim
       t.run 
     end
   end
+
+  class SimTimeout < Entity
+    include Base
+
+    attr_reader :time, :is_periodic, :active
+
+    def initialize(time, is_periodic, block)
+      super()
+
+      @time = time
+      @is_periodic = is_periodic
+      @block = block
+      @active = true
+
+      setup_timer
+    end
+
+    def setup_timer
+      @active = true
+      @sim.schedule_event(:timeout, @sid, @time, self)
+      #log "Timeout started for #{@sid} in #{@time} units"
+    end
+    alias start reset
+
+    def cancel
+      @active = false
+      #log "Timeout stopped for #{@sid}"
+    end
+    alias stop cancel
+
+    def handle_timeout(timeout)
+      #log "sid -> #{@sid} running timeout"
+      # Test twice in case the timeout was canceled in the block.
+      @block.call(self) if @active
+      setup_timer if @active and @is_periodic
+    end
+  end
+
 
   Event = Struct.new(:event_id, :dest_id, :time, :data)
 
@@ -131,7 +133,7 @@ module GoSim
       begin
         @trace = Logger.new(device)
       rescue Exception => exp
-        log.error "Must pass a filename (String) or IO object as the trace device:\n  " + exp 
+        @@log.error "Must pass a filename (String) or IO object as the trace device:\n  " + exp 
         raise
       end
     end
@@ -139,7 +141,8 @@ module GoSim
 
     # Schedule a new event by putting it into the event queue
     def schedule_event(event_id, dest_id, time, data)
-      log.debug "#{dest_id} is scheduling #{data.class} for #{@time + time}"
+      #log "#{dest_id} is scheduling #{event_id} for #{@time + time}"
+      event_id = ("handle_" + event_id.to_s).to_sym
       @event_queue.push(Event.new(event_id, dest_id, @time + time, data))
     end
 
@@ -147,14 +150,14 @@ module GoSim
       return if @running   # Disallow after starting once
       @running = true
 
-      log.debug("Running simulation until: #{end_time}")
+      #log ("Running simulation until: #{end_time}")
       
       while(@running and (cur_event = @event_queue.pop) and (cur_event.time <= end_time))
-        log.debug("Handling %s event at %d\n" % [cur_event.data.class, cur_event.time])
+        #log ("Handling %s event at %d\n" % [cur_event.data.class, cur_event.time])
 
         @time = last_time = cur_event.time
 
-        @entities[cur_event.dest_id][event_id].call(cur_event.data) 
+        @entities[cur_event.dest_id].send(cur_event.event_id, cur_event.data) 
       end
 
       @running = false
