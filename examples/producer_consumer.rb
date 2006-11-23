@@ -36,10 +36,10 @@ class Consumer < GoSim::Entity
   end
 end
 
-consumer = Consumer.new
-producer = Producer.new(consumer.sid)
-
 if __FILE__ == $PROGRAM_NAME
+  consumer = Consumer.new
+  producer = Producer.new(consumer.sid)
+
   puts "Beginning simulation..."
   GoSim::Simulation.run
   puts "Simulation complete..."

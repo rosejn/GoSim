@@ -85,6 +85,8 @@ module GoSim
     include Base
     include Singleton
 
+    PORT_NUMBER = 8765
+
     attr_reader :trace, :time
 
     class << self
@@ -94,6 +96,18 @@ module GoSim
 
       def reset
         Simulation.instance.reset
+      end
+
+      def start_server(num_clients, port = PORT_NUMBER)
+        require 'gosim/distributed'
+
+        Server.new(num_clients, port)
+      end
+
+      def start_client(ip, port = PORT_NUMBER)
+        require 'gosim/distributed'
+
+        Client.new(ip, port)
       end
     end
 
@@ -129,6 +143,10 @@ module GoSim
       @event_queue.size
     end
 
+    def num_entities
+      @entities.size
+    end
+
     def trace_log(device)
       begin
         @trace = Logger.new(device)
@@ -146,7 +164,7 @@ module GoSim
       @event_queue.push(Event.new(event_id, dest_id, @time + time, data))
     end
 
-    def run(end_time = 999999999) 
+    def run(end_time = MAX_INT) 
       return if @running   # Disallow after starting once
       @running = true
 

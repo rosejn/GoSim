@@ -4,6 +4,8 @@ require 'singleton'
 require 'pqueue'
 
 module GoSim
+  MAX_INT = 2**30
+
   module Base
     # TODO: Figure out what we want to do for a logging framework.
     @@log = Logger.new(STDERR)
