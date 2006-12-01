@@ -2,6 +2,7 @@ require 'logger'
 require 'singleton'
 
 require 'pqueue'
+require 'gsl'
 
 module GoSim
   module Base
