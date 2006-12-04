@@ -1,6 +1,6 @@
 module GoSim
   module Net
-    MEDIAN_LATENCY = 5
+    MEAN_LATENCY = 5
 
     GSNetworkPacket = Struct.new(:id, :src, :dest, :data)
     FailedPacket = Struct.new(:dest, :data)
@@ -11,10 +11,13 @@ module GoSim
     class Topology < Entity
       include Singleton
 
-      def initialize(median_latency = MEDIAN_LATENCY)
+      def initialize(mean_latency = MEAN_LATENCY)
         super()
-        @median_latency = median_latency
+        @mean_latency = mean_latency
         @node_status = {}
+
+        GSL::Rng.env_setup
+        @rand_gen = GSL::Rng.alloc("mt19937")
 
         @sim.add_observer(self)
       end
@@ -34,7 +37,7 @@ module GoSim
         [*receivers].each do |receiver| 
           @sim.schedule_event(:gs_network_packet, 
                               @sid, 
-                              @median_latency, 
+                              @rand_gen.poisson(@mean_latency), 
                               GSNetworkPacket.new(id, src, receiver, packet)) 
         end
       end
