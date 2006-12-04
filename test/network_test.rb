@@ -97,10 +97,13 @@ class TestNetworkSimulation < Test::Unit::TestCase
 
     node_a.link(node_b.sid)
 
-    4.times {|i| @sim.schedule_event(:packet, node_a.sid, 2 * i, Packet.new(i)) }
+    2.times {|i| @sim.schedule_event(:packet, node_a.sid, 0, Packet.new(i)) }
+    2.times {|i| @sim.schedule_event(:packet, node_a.sid, 
+                                     i + GoSim::Net::MEAN_LATENCY * 2, 
+                                     Packet.new(i+2)) }
     @sim.schedule_event(:liveness_packet, 
                         node_b.sid, 
-                        3 + GoSim::Net::MEDIAN_LATENCY, 
+                        GoSim::Net::MEAN_LATENCY * 2, 
                         GoSim::Net::LivenessPacket.new(false))
     @sim.run
 
