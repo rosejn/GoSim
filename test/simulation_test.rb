@@ -89,7 +89,7 @@ class TestSimulation < Test::Unit::TestCase
     producer = Producer.new(consumer.sid, 2)
 
     @sim.run
-    assert_equal("0, 1, foo\n10, 1, foo\n", IO::read(file))
+    assert_equal("0, #{producer.sid}, foo\n10, #{producer.sid}, foo\n", IO::read(file))
 
     # Now try with an attached handler instead
     @sim.reset

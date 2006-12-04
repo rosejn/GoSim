@@ -41,13 +41,12 @@ class TestNetworkSimulation < Test::Unit::TestCase
     @sim = GoSim::Simulation.instance
     @topo = GoSim::Net::Topology.instance
     
+    #@sim.verbose
     @sim.quiet
-    @sim.trace.level = Logger::INFO
   end
 
   def teardown
     @sim.reset
-    @topo.reset
   end
   
   def test_linking

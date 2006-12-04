@@ -1,5 +1,6 @@
 require 'logger'
 require 'singleton'
+require 'observer'
 
 require 'pqueue'
 
@@ -14,6 +15,10 @@ module GoSim
     # So that all derived classes have an easy accessor
     def log(*args)
       @@log.debug(*args)
+    end
+
+    def error(*args)
+      @@log.fatal(*args)
     end
 
     # Turn down logging all the way (nice for unit tests etc...)

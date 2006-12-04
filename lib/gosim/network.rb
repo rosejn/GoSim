@@ -15,10 +15,19 @@ module GoSim
         super()
         @median_latency = median_latency
         @node_status = {}
+
+        @sim.add_observer(self)
       end
 
-      def node_alive(nid, status)
-        @node_status[nid] = status
+      # Called by simulation when a reset occurs
+      def update
+        log "Resetting topology..."
+        reset
+        log "topology now has sid=#{sid}"
+      end
+
+      def node_alive(addr, status)
+        @node_status[addr] = status
       end
 
       def send_packet(id, src, receivers, packet)
@@ -29,8 +38,6 @@ module GoSim
                               GSNetworkPacket.new(id, src, receiver, packet)) 
         end
       end
-
-      private
 
       def handle_gs_network_packet(packet)
         if @node_status[packet.dest]
@@ -43,15 +50,15 @@ module GoSim
     end
 
     class Node < Entity
-      attr_reader :nid, :neighbor_ids
+      attr_reader :addr, :neighbor_ids
 
-      def initialize(nid = nil)
+      def initialize()
         super()
-        @nid = nid || @sid
+        @addr = @sid
         @topo = Topology.instance
         @neighbor_ids = []
         @alive = true
-        @topo.node_alive(@nid, @alive)
+        @topo.node_alive(@addr, @alive)
       end
 
       def link(neighbors)
@@ -64,7 +71,7 @@ module GoSim
 
       def handle_liveness_packet(pkt)
         @alive = pkt.alive
-        @topo.node_alive(@nid, @alive)
+        @topo.node_alive(@addr, @alive)
       end
 
       def alive?
@@ -73,7 +80,7 @@ module GoSim
 
       def alive=(status)
         @alive = status
-        @topo.node_alive(@nid, @alive)
+        @topo.node_alive(@addr, @alive)
       end
       alias alive alive=
 
