@@ -31,6 +31,10 @@ module GoSim
       #log "#{@sid}: Timeout set for #{time}"
     end
 
+    def inspect
+      "<GoSim::Entity sid=#{@sid}>"
+    end
+
     private
 
     def handle_sim_timeout(t)
@@ -146,6 +150,10 @@ module GoSim
 
     def num_entities
       @entities.size
+    end
+
+    def inspect
+      "<GoSim::Simulation - time=#{@time} entities.size=#{@entities.size}>"
     end
 
     def trace_log(device)
