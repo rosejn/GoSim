@@ -77,6 +77,11 @@ module GoSim
       @block.call(self) if @active
       setup_timer if @active and @is_periodic
     end
+
+    def inspect
+      sprintf("#<GoSim::SimTimeout: @time=%d, @is_periodic=%s, @active=%s>",
+            @time, @is_periodic, @active)
+    end
   end
 
   Event = Struct.new(:event_id, :dest_id, :time, :data)
@@ -189,6 +194,7 @@ module GoSim
       rescue Exception => e
         error "error occurred sending:\n#{cur_event.data.inspect}\nto destination: #{cur_event.dest_id}.#{cur_event.event_id}"
         puts e
+        print e.backtrace.join("\n")
         stop
       end
 
