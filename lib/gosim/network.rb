@@ -11,22 +11,27 @@ module GoSim
     class Topology < Entity
       include Singleton
 
-      def initialize(mean_latency = MEAN_LATENCY)
+      def initialize()
         super()
-        @mean_latency = mean_latency
-        @node_status = {}
 
         GSL::Rng.env_setup
         @rand_gen = GSL::Rng.alloc("mt19937")
-
         @sim.add_observer(self)
+      end
+
+      def setup(mean_latency = MEAN_LATENCY)
+        @mean_latency = mean_latency
+        @node_status = {}
+
+        return self
       end
 
       # Called by simulation when a reset occurs
       def update
         log "Resetting topology..."
         reset
-        log "topology now has sid=#{sid}"
+        @node_status = {}
+        log "Topology now has sid #{sid}"
       end
 
       def node_alive(addr, status)
