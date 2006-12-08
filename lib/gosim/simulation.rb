@@ -71,6 +71,11 @@ module GoSim
     end
     alias stop cancel
 
+    def start
+      @active = true
+      setup_timer
+    end
+
     def handle_timeout(timeout)
       #log "sid -> #{@sid} running timeout"
       # Test twice in case the timeout was canceled in the block.
@@ -193,7 +198,7 @@ module GoSim
       end
       rescue Exception => e
         error "error occurred sending:\n#{cur_event.data.inspect}\nto destination: #{cur_event.dest_id}.#{cur_event.event_id}"
-        puts e
+        puts "Exception: #{e}"
         print e.backtrace.join("\n")
         stop
       end

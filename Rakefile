@@ -61,5 +61,5 @@ end
 
 desc 'Install the gem globally (requires sudo)'
 task :install => :package do |t|
-  `sudo gem install pkg/gosim-#{PKG_VERSION}.gem`
+  `gem install pkg/gosim-#{PKG_VERSION}.gem`
 end
