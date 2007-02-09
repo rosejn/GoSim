@@ -189,13 +189,13 @@ module GoSim
 
       #log ("Running simulation until: #{end_time}")
       begin
-      while(@running and (cur_event = @event_queue.pop) and (cur_event.time <= end_time))
-        #log ("Handling %s event at %d\n" % [cur_event.data.class, cur_event.time])
+        while(@running and (cur_event = @event_queue.pop) and (cur_event.time <= end_time))
+          #log ("Handling %s event at %d\n" % [cur_event.data.class, cur_event.time])
 
-        @time = last_time = cur_event.time
+          @time = last_time = cur_event.time
 
-        @entities[cur_event.dest_id].send(cur_event.event_id, cur_event.data) 
-      end
+          @entities[cur_event.dest_id].send(cur_event.event_id, cur_event.data) 
+        end
       rescue Exception => e
         error "error occurred sending:\n#{cur_event.data.inspect}\nto destination: #{cur_event.dest_id}.#{cur_event.event_id}"
         puts "Exception: #{e}"
