@@ -88,6 +88,7 @@ module GoSim
       end
 
       def alive=(status)
+        log "Setting alive= on #{nid}"
         @alive = status
         @topo.node_alive(@addr, @alive)
       end
