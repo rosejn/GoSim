@@ -6,30 +6,41 @@ module GoSim
 
     @@sid_counter = 0
     
+    # Used internally by Entity objects that require a unique simulation ID.
     def Entity.next_sid
       @@sid_counter += 1
       @@sid_counter - 1
     end
 
+    # Reset the entity ID counter, mostly here for easy unit testability.
     def Entity.reset
       @@sid_counter = 0
     end
 
+    # Create a new simulation Entity.  This will typically be run when super()
+    # is called from a child class.
     def initialize
       @sim = Simulation.instance
       reset
     end
 
+    # Reset an Entity so that it gets a new simulation ID and
+    # re-registers itself.  Typically just for unit testing.
     def reset
       @sid = Entity.next_sid
       @sim.register_entity(@sid, self)
       self
     end
 
-    def set_timeout(time, is_periodic = false, &block)
-      SimTimeout.new(time, is_periodic, block)
+    # Set a block of code to run after wait_time units of time.  If the
+    # is_periodic flag is set it will continue to run every wait_time units.
+    def set_timeout(wait_time, is_periodic = false, &block)
+      SimTimeout.new(wait_time, is_periodic, block)
     end
 
+    # Override the default inspect so entities with lots of state don't fill
+    # the screen during debug.  Implement your own inspect method to print
+    # useful information about your Entity.
     def inspect
       "<GoSim::Entity sid=#{@sid}>"
     end
@@ -59,14 +70,12 @@ module GoSim
 
     def setup_timer
       @active = true
-      @sim.schedule_event(:timeout, @sid, @time, self)
-      #log "Timeout started for #{@sid} in #{@time} units"
+      @sim.schedule_event(:handle_timeout, @sid, @time, self)
     end
     alias start reset
 
     def cancel
       @active = false
-      #log "Timeout stopped for #{@sid}"
     end
     alias stop cancel
 
@@ -76,7 +85,6 @@ module GoSim
     end
 
     def handle_timeout(timeout)
-      #log "sid -> #{@sid} running timeout"
       # Test twice in case the timeout was canceled in the block.
       @block.call(self) if @active
       setup_timer if @active and @is_periodic
@@ -177,8 +185,6 @@ module GoSim
 
     # Schedule a new event by putting it into the event queue
     def schedule_event(event_id, dest_id, time, data)
-      #log "#{dest_id} is scheduling #{event_id} for #{@time + time}"
-      event_id = ("handle_" + event_id.to_s).to_sym
       @event_queue.push(Event.new(event_id, dest_id, @time + time, data))
     end
 

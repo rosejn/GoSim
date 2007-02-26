@@ -1,60 +1,59 @@
-#include "ruby.h"
-#include "stdio.h"
+#include <ruby.h>
+#include <intern.h>
+#include <stdio.h>
 
 /*
+ * This is probably the most called method, and it's easy so it's a good one to
+ * start with... :-)
     def schedule_event(event_id, dest_id, time, data)
-      #log "#{dest_id} is scheduling #{event_id} for #{@time + time}"
-      event_id = ("handle_" + event_id.to_s).to_sym
       @event_queue.push(Event.new(event_id, dest_id, @time + time, data))
     end
 */
-
 
 static ID event_q_id = Qnil;
 static ID time_id		 = Qnil;
 static ID new_id	   = Qnil;
 static ID push_id		 = Qnil;
+static ID event_class = Qnil;
 
-static VALUE schedule_event(VALUE self, 
-		VALUE event_id, 
+static VALUE schedule_event(
+		VALUE self, 
+		VALUE event_sym, 
 		VALUE dest_id, 
 		VALUE time, 
 		VALUE data)
 {
-	VALUE event_sym;
 	VALUE event;
 	VALUE event_q;
-	
-	event_sym = rb_str_intern(rb_str_concat(rb_str_new2("handle_"), event_id));
+
 	event_q = rb_ivar_get(self, event_q_id);
 
 	event = rb_funcall(event_class, new_id, 4, 
 			event_sym, 
 			dest_id, 
-			rb_funcall(time, rb_ivar_get(self, event_q_id)),
+			rb_funcall(time, rb_ivar_get(self, event_q_id), 0),
 			data);
 
+	printf("Inside schedule_event!");
 	rb_funcall(event_q, push_id, 1, event);
 
 	return event_q;
 }
 
-static VALUE test(VALUE self, VALUE num)
-{
-	//return rb_funcall(num, rb_intern("+"), 1, INT2FIX(10));
-	return rb_
-}
-
 void Init_gosim_guts()
 {
-	VALUE rb_guts;
+	VALUE rb_gosim;
+	VALUE rb_simulation;
 
+	rb_gosim = rb_const_get(rb_cObject, rb_intern("GoSim"));
+//	rb_simulation = rb_const_get(rb_gosim, rb_intern("Simulation"));
+	rb_simulation = rb_define_class_under(rb_gosim, "Simulation", rb_cObject);
+
+	event_class = rb_const_get(rb_gosim, rb_intern("Event"));
 	event_q_id = rb_intern("@event_queue");
 	time_id = rb_intern("@time");
-	new_id = rb_intern("new");
+	new_id = rb_intern("initialize");
 	push_id = rb_intern("push");
 
-	rb_guts = rb_define_module("Guts");
-	rb_define_module_function(rb_guts, "schedule_event", schedule_event, 4);
-	rb_define_module_function(rb_guts, "test", test, 1);
+	rb_define_method(rb_simulation, "schedule_event", schedule_event, 4);
 }

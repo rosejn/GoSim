@@ -19,7 +19,7 @@ class TestNode < GoSim::Net::Node
     @got_message = true
 
     unless @pkt_cache.index(pkt.seq_num)
-      send_packet(:packet, @neighbor_ids, pkt) unless @neighbor_ids.empty?
+      send_packet(:handle_packet, @neighbor_ids, pkt) unless @neighbor_ids.empty?
       @pkt_cache << pkt.seq_num
     end
   end
@@ -84,7 +84,7 @@ class TestNetworkSimulation < Test::Unit::TestCase
       end
     end
 
-    @sim.schedule_event(:packet, nodes.keys[0], 0, Packet.new(1))
+    @sim.schedule_event(:handle_packet, nodes.keys[0], 0, Packet.new(1))
     @sim.run
 
     nodes.values.each { |node| assert(node.got_message?) }
@@ -97,13 +97,13 @@ class TestNetworkSimulation < Test::Unit::TestCase
 
     node_a.link(node_b.sid)
 
-    2.times {|i| @sim.schedule_event(:packet, node_a.sid, 0, Packet.new(i)) }
-    2.times {|i| @sim.schedule_event(:packet, node_a.sid, 
-                                     i + GoSim::Net::MEAN_LATENCY * 2, 
+    2.times {|i| @sim.schedule_event(:handle_packet, node_a.sid, 0, Packet.new(i)) }
+    2.times {|i| @sim.schedule_event(:handle_packet, node_a.sid, 
+                                     i + GoSim::Net::LATENCY_MEAN * 2, 
                                      Packet.new(i+2)) }
-    @sim.schedule_event(:liveness_packet, 
+    @sim.schedule_event(:handle_liveness_packet, 
                         node_b.sid, 
-                        GoSim::Net::MEAN_LATENCY * 2, 
+                        GoSim::Net::LATENCY_MEAN * 2, 
                         GoSim::Net::LivenessPacket.new(false))
     @sim.run
 

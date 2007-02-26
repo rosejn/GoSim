@@ -12,7 +12,7 @@ class Producer < GoSim::Entity
 
     # Schedule a bunch of new product events.
     num_items.times do |t| 
-      @sim.schedule_event(:item, @sid, t * 10, Item.new("foo", :receive)) 
+      @sim.schedule_event(:new_item, @sid, t * 10, Item.new("foo", :receive)) 
     end
 
     dir_name = File.join(File.dirname(__FILE__), "output")
@@ -20,8 +20,8 @@ class Producer < GoSim::Entity
     @dataset = GoSim::DataSet.new(:producer, dir_name)
   end
 
-  def handle_item(event)
-    @sim.schedule_event(:item, @neighbor, 5, event)
+  def new_item(event)
+    @sim.schedule_event(:new_item, @neighbor, 5, event)
     @dataset.log(@sid, event.name)
   end
 end
@@ -34,7 +34,7 @@ class Consumer < GoSim::Entity
     @received = 0
   end
 
-  def handle_item(event)
+  def new_item(event)
     @received += 1
   end
 end

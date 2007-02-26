@@ -3,7 +3,6 @@ require 'singleton'
 require 'observer'
 
 require 'pqueue'
-require 'gsl'
 
 module GoSim
   MAX_INT = 2**30

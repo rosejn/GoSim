@@ -1,4 +1,5 @@
 $:.unshift(File.dirname(__FILE__) + '/../lib')
+$:.unshift(File.dirname(__FILE__) + '/..')
 
 require 'rational'
 require 'gosim'
@@ -15,7 +16,7 @@ class Benchmarker < GoSim::Entity
     @counter = 0
 
     n.times do |t|
-      @sim.schedule_event(:item, @sid, t * 10, t)
+      @sim.schedule_event(:handle_item, @sid, t * 10, t)
     end
   end
 
@@ -24,16 +25,24 @@ class Benchmarker < GoSim::Entity
   end
 end
 
-NUM_EVENTS = 100000
+def run_benchmark(num_events)
+  sim = GoSim::Simulation::instance
 
-sim = GoSim::Simulation::instance
+  puts "Starting benchmark for #{num_events} events:\n"
 
-Benchmark.bm do |stat|
-  puts "Starting benchmark for #{NUM_EVENTS} events:\n"
-
-  b = Benchmarker.new(NUM_EVENTS)
-  stat.report { sim.run }
-
-  puts "Benchmark complete after counting #{b.counter} events.\n"
+  Benchmark.bm do |stat|
+    b = Benchmarker.new(num_events)
+    stat.report { sim.run }
+  end
 end
+
+NUM_EVENTS = 50000
+
+# Without the C extension
+#run_benchmark(NUM_EVENTS)
+
+# With the C extension
+require 'ext/guts/gosim_guts'
+run_benchmark(NUM_EVENTS)
+
 

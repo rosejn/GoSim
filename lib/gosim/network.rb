@@ -1,6 +1,7 @@
 module GoSim
   module Net
-    MEAN_LATENCY = 5
+    LATENCY_MEAN = 100
+    LATENCY_DEV  = 50
 
     GSNetworkPacket = Struct.new(:id, :src, :dest, :data)
     FailedPacket = Struct.new(:dest, :data)
@@ -14,47 +15,68 @@ module GoSim
       def initialize()
         super()
 
-        GSL::Rng.env_setup
-        @rand_gen = GSL::Rng.alloc("mt19937")
         @sim.add_observer(self)
-        setup
+        @nodes = {}
       end
 
-      def setup(mean_latency = MEAN_LATENCY)
-        @mean_latency = mean_latency
-        @node_status = {}
-
-        return self
+      def set_latency(latency_mean = LATENCY_MEAN, latency_dev = LATENCY_DEV)
+        @latency_mean = latency_mean
+        @latency_dev = latency_dev
       end
 
       # Called by simulation when a reset occurs
       def update
         log "Resetting Topology..."
         reset
-        @node_status = {}
+        @nodes = {}
         log "Topology now has sid #{sid}"
       end
 
-      def node_alive(addr, status)
-        @node_status[addr] = status
+      def register_node(node)
+        @nodes[node.addr] = node
       end
 
-      def send_packet(id, src, receivers, packet)
+      def get_node(addr)
+        @nodes[node.addr]
+      end
+
+      # Simple send packet that is always handled by Node#recv_packet
+      def send_packet(src, receivers, packet)
         [*receivers].each do |receiver| 
-          @sim.schedule_event(:gs_network_packet, 
-                              @sid, 
-                              @rand_gen.poisson(@mean_latency), 
-                              GSNetworkPacket.new(id, src, receiver, packet)) 
+          send_rpc_packet(:recv_packet, src, receiver, packet)
         end
+      end
+
+      # An rpc send that gets handled by a specific method on the receiver
+      def send_rpc_packet(id, src, receiver, packet)
+        @sim.schedule_event(:handle_gs_network_packet, 
+                            @sid, 
+                            rand(@mean_latency) + LATENCY_DEV,
+                            GSNetworkPacket.new(id, src, receiver, packet)) 
       end
 
       def handle_gs_network_packet(packet)
-        if @node_status[packet.dest]
+        if @nodes[packet.dest].alive?
           @sim.schedule_event(packet.id, packet.dest, 0, packet.data)
         else
-          @sim.schedule_event(:failed_packet, packet.src, 0, 
+          @sim.schedule_event(:handle_failed_packet, packet.src, 0, 
                               FailedPacket.new(packet.dest, packet.data))
         end
+      end
+    end
+
+    class RPCInvalidMethodError < Exception; end
+
+    class Peer
+      def initialize(local_node, remote_node)
+        @local_node = local_node
+        @remote_node = remote_node
+      end
+
+      def method_missing(method, *args)
+        raise RPCInvalidMethodError unless @node.respond_to?(method)
+
+        @topo.send_rpc_packet(@local_node.addr, @remote_node.addr, args) 
       end
     end
 
@@ -67,7 +89,8 @@ module GoSim
         @topo = Topology.instance
         @neighbor_ids = []
         @alive = true
-        @topo.node_alive(@addr, @alive)
+
+        @topo.register_node(self)
       end
 
       def link(neighbors)
@@ -80,7 +103,6 @@ module GoSim
 
       def handle_liveness_packet(pkt)
         @alive = pkt.alive
-        @topo.node_alive(@addr, @alive)
       end
 
       def alive?
@@ -88,14 +110,19 @@ module GoSim
       end
 
       def alive=(status)
-        log "Setting alive= on #{nid}"
         @alive = status
-        @topo.node_alive(@addr, @alive)
       end
-      alias alive alive=
 
-      def send_packet(id, receivers, pkt)
+      def send_packet(receivers, pkt)
         @topo.send_packet(id, @sid, receivers, pkt)
+      end
+
+      # Override this in your subclass to do custom demuxing.
+      def recv_packet(pkt)
+      end
+
+      def rpc_connect(addr)
+
       end
 
       # Implement this method to do something specific for your application.
