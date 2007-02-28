@@ -13,23 +13,35 @@ class TestNode < GoSim::Net::Node
     @got_message = false
     @pkt_cache = []
     @failed_packets = 0
+    @neighbors = {}
+  end
+
+  def add_neighbor(addr)
+    @neighbors[addr] = get_peer(addr)
+  end
+
+  def start_flood(pkt)
+    forward_packet(pkt)
   end
 
   def handle_packet(pkt)
     @got_message = true
+    forward_packet(pkt)
+  end
 
+  def forward_packet(pkt)
     unless @pkt_cache.index(pkt.seq_num)
-      send_packet(:packet, @neighbor_ids, pkt) unless @neighbor_ids.empty?
+      @neighbors.values.each do |n| 
+        d = n.handle_packet(pkt)
+        d.add_errback {|f| @failed_packets += 1}
+      end
+
       @pkt_cache << pkt.seq_num
     end
   end
 
   def got_message?
     @got_message
-  end
-
-  def handle_failed_packet(pkt)
-    @failed_packets += 1
   end
 end
 
@@ -41,30 +53,11 @@ class TestNetworkSimulation < Test::Unit::TestCase
     @sim = GoSim::Simulation.instance
     @topo = GoSim::Net::Topology.instance
     
-    #@sim.verbose
     @sim.quiet
   end
 
   def teardown
     @sim.reset
-  end
-  
-  def test_linking
-    nodes = {}
-    NUM_NODES.times do
-      n = TestNode.new
-      nodes[n.sid] = n
-    end 
-
-    n = TestNode.new
-    n.link(nodes.keys)
-    assert_equal(NUM_NODES, n.neighbor_ids.size)
-
-    n = TestNode.new
-    n.link(nodes[0])
-    assert_equal(1, n.neighbor_ids.size)
-    n.link(nodes[1])
-    assert_equal(2, n.neighbor_ids.size)
   end
 
   def test_flood
@@ -79,35 +72,37 @@ class TestNetworkSimulation < Test::Unit::TestCase
 
     nodes.each do |sid, node|
       (rand(CONNECTIVITY) + 1).times do
-        neighbor = nodes.keys[rand(NUM_NODES)]
-        node.link(neighbor) unless neighbor == sid
+        n_addr = nodes.keys[rand(NUM_NODES)]
+        node.add_neighbor(n_addr) unless n_addr == node.addr
       end
     end
 
-    @sim.schedule_event(:packet, nodes.keys[0], 0, Packet.new(1))
+    @sim.schedule_event(:start_flood, nodes.keys[0], 0, Packet.new(1))
     @sim.run
 
-    nodes.values.each { |node| assert(node.got_message?) }
+    nodes.values.each { |node| assert(node.got_message?, "#{node.addr}->#{node.got_message?}") }
   end
 
   def test_liveness_and_failure
-    nodes = {}
     node_a = TestNode.new
     node_b = TestNode.new
 
-    node_a.link(node_b.sid)
+    node_a.add_neighbor(node_b.addr)
 
-    2.times {|i| @sim.schedule_event(:packet, node_a.sid, 0, Packet.new(i)) }
-    2.times {|i| @sim.schedule_event(:packet, node_a.sid, 
-                                     i + GoSim::Net::MEAN_LATENCY * 2, 
-                                     Packet.new(i+2)) }
-    @sim.schedule_event(:liveness_packet, 
+    10.times {|i| @sim.schedule_event(:handle_packet, node_a.sid, i*1000, Packet.new(i)) }
+    @sim.schedule_event(:handle_liveness_packet, 
                         node_b.sid, 
-                        GoSim::Net::MEAN_LATENCY * 2, 
+                        5000, 
                         GoSim::Net::LivenessPacket.new(false))
     @sim.run
 
-    assert_equal(2, node_a.failed_packets)
+    assert_equal(5, node_a.failed_packets)
+  end
+
+  def test_net_deferred
+    node_a = TestNode.new
+    node_b = TestNode.new
+
   end
 end
 

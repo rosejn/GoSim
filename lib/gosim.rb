@@ -2,8 +2,12 @@ require 'logger'
 require 'singleton'
 require 'observer'
 
-require 'pqueue'
-require 'gsl'
+begin
+  require 'event_queue'
+rescue RuntimeError => e
+  warn "event_queue extension not loaded! Loading ruby pqueue instead."
+  require 'pqueue'
+end
 
 module GoSim
   MAX_INT = 2**30
@@ -34,6 +38,7 @@ module GoSim
 end
 
 require 'gosim/simulation'
+require 'gosim/defer'
 require 'gosim/network'
 require 'gosim/data'
 
