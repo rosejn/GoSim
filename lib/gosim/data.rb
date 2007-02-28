@@ -12,6 +12,10 @@ module GoSim
         @@handlers[key] ||= []
         @@handlers[key] << block
       end
+
+      def [](set)
+        @@sets[set]
+      end
     end
 
     def initialize(name, location='./')
@@ -28,7 +32,7 @@ module GoSim
       if @@handlers[@name]
         @@handlers[@name].each {|h| h.call(*args) }
       elsif @data_file
-        @data_file.write(@sim.time.to_s + ', ' + args.join(', ') + "\n")
+        @data_file.write(@sim.time.to_s + ': ' + args.join(', ') + "\n")
       end
     end
 

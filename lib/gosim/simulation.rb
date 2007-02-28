@@ -189,8 +189,10 @@ module GoSim
 
       #log ("Running simulation until: #{end_time}")
       begin
-        while(@running and (cur_event = @event_queue.pop) and (cur_event.time <= end_time))
+        while(@running and (cur_event = @event_queue.top) and (cur_event.time <= end_time))
           #log ("Handling %s event at %d\n" % [cur_event.data.class, cur_event.time])
+
+          @event_queue.pop
 
           @time = last_time = cur_event.time
 
