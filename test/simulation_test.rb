@@ -80,6 +80,15 @@ class TestSimulation < Test::Unit::TestCase
     assert_equal(10, consumer.received)
   end
 
+  def test_single_step
+    num_items = 10
+    consumer = Consumer.new
+    producer = Producer.new(consumer.sid, num_items)
+
+    (num_items * 10).times {|i| @sim.run(i) }
+    assert_equal(10, consumer.received)
+  end
+
   def test_data_set
     # Test the regular data logging
     file = File.expand_path(File.join(File.dirname(__FILE__), "output", "producer"))
