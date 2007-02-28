@@ -28,7 +28,6 @@ module GoSim
 
     def set_timeout(time, is_periodic = false, &block)
       SimTimeout.new(time, is_periodic, block)
-      #log "#{@sid}: Timeout set for #{time}"
     end
 
     def inspect
@@ -199,7 +198,7 @@ module GoSim
           @entities[cur_event.dest_id].send(cur_event.event_id, cur_event.data) 
         end
       rescue Exception => e
-        error "error occurred sending:\n#{cur_event.data.inspect}\nto destination: #{cur_event.dest_id}.#{cur_event.event_id}"
+        error "GoSim error occurred sending:\n#{cur_event.data.inspect}\nto destination: #{cur_event.dest_id}.#{cur_event.event_id}"
         puts "Exception: #{e}"
         print e.backtrace.join("\n")
         stop

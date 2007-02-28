@@ -1,6 +1,8 @@
 $:.unshift(File.dirname(__FILE__) + '/../lib')
 
+require 'rational'
 require 'gosim'
+
 require 'rubygems'
 require 'benchmark'
 
