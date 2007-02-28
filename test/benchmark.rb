@@ -28,12 +28,9 @@ NUM_EVENTS = 100000
 
 sim = GoSim::Simulation::instance
 
+puts "Starting benchmark for #{NUM_EVENTS} events:\n"
 Benchmark.bm do |stat|
-  puts "Starting benchmark for #{NUM_EVENTS} events:\n"
-
   b = Benchmarker.new(NUM_EVENTS)
   stat.report { sim.run }
-
-  puts "Benchmark complete after counting #{b.counter} events.\n"
 end
 
