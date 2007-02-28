@@ -2,7 +2,10 @@ require 'logger'
 require 'singleton'
 require 'observer'
 
-require 'pqueue'
+#require 'pqueue'
+
+$:.unshift(File.dirname(__FILE__) + '/..')
+require 'ext/guts/gosim_guts'
 
 module GoSim
   MAX_INT = 2**30
@@ -33,6 +36,7 @@ module GoSim
 end
 
 require 'gosim/simulation'
+require 'gosim/defer'
 require 'gosim/network'
 require 'gosim/data'
 

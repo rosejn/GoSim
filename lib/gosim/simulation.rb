@@ -139,7 +139,9 @@ module GoSim
       @time = 0
       @end_time = 1000
       @running = false
-      @event_queue = PQueue.new(proc {|x,y| x.time < y.time})
+      
+      reset_event_queue
+
       @entities = {}
       @handlers = {}
 
@@ -152,6 +154,12 @@ module GoSim
       self
     end
 
+    if not method_defined?(:reset_event_queue)
+      def reset_event_queue
+        @event_queue = PQueue.new(proc {|x,y| x.time < y.time})
+      end
+    end
+
     def register_entity(sid, entity)
       @entities[sid] = entity
       @handlers[sid] = {}
@@ -159,10 +167,6 @@ module GoSim
 
     def add_handler(sid, event_id, &block)
       @handlers[sid][event_id] = block
-    end
-
-    def queue_size
-      @event_queue.size
     end
 
     def num_entities
@@ -184,32 +188,39 @@ module GoSim
     alias trace_log= trace_log
 
     # Schedule a new event by putting it into the event queue
-    def schedule_event(event_id, dest_id, time, data)
-      @event_queue.push(Event.new(event_id, dest_id, @time + time, data))
+    if not method_defined?(:schedule_event)
+      def schedule_event(event_id, dest_id, time, data)
+        @event_queue.push(Event.new(event_id, dest_id, @time + time, data))
+      end
     end
 
-    def run(end_time = MAX_INT) 
+    if not method_defined?(:run_main_loop)
+      def run_main_loop(end_time)
+        while(@running and (cur_event = @event_queue.pop) and (cur_event.time <= end_time))
+          @time = cur_event.time
+          @entities[cur_event.dest_id].send(cur_event.event_id, cur_event.data) 
+        end
+      end
+    end
+
+    def run(end_time = 2**30) 
       return if @running   # Disallow after starting once
       @running = true
 
       #log ("Running simulation until: #{end_time}")
       begin
-        while(@running and (cur_event = @event_queue.pop) and (cur_event.time <= end_time))
-          #log ("Handling %s event at %d\n" % [cur_event.data.class, cur_event.time])
-
-          @time = last_time = cur_event.time
-
-          @entities[cur_event.dest_id].send(cur_event.event_id, cur_event.data) 
-        end
+        run_main_loop(end_time)
       rescue Exception => e
-        error "GoSim error occurred sending:\n#{cur_event.data.inspect}\nto destination: #{cur_event.dest_id}.#{cur_event.event_id}"
-        puts "Exception: #{e}"
-        print e.backtrace.join("\n")
+        error "GoSim error occurred in main event loop!"
+        puts "Generated Exception: #{e}"
+        puts e.backtrace.join("\n")
         stop
       end
 
       @running = false
-      @time = last_time || end_time # Do this so we are at the correct time even if no events fired.
+      
+      # Do this so we are at the correct time even if no events fired.
+      @time = end_time if @time < end_time
 
       # Make sure to write out all the data files when simulation finishes.
       DataSet.flush_all

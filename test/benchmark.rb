@@ -2,6 +2,9 @@ $:.unshift(File.dirname(__FILE__) + '/../lib')
 $:.unshift(File.dirname(__FILE__) + '/..')
 
 require 'rational'
+
+# With the C extension
+require 'ext/guts/gosim_guts'
 require 'gosim'
 
 require 'rubygems'
@@ -16,7 +19,7 @@ class Benchmarker < GoSim::Entity
     @counter = 0
 
     n.times do |t|
-      @sim.schedule_event(:handle_item, @sid, t * 10, t)
+      @sim.schedule_event(:handle_item, @sid, t * 10 + 1, t)
     end
   end
 
@@ -36,13 +39,8 @@ def run_benchmark(num_events)
   end
 end
 
-NUM_EVENTS = 50000
+NUM_EVENTS = 1000000
 
-# Without the C extension
-#run_benchmark(NUM_EVENTS)
-
-# With the C extension
-require 'ext/guts/gosim_guts'
 run_benchmark(NUM_EVENTS)
 
 

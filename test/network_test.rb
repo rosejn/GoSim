@@ -20,21 +20,29 @@ class TestNode < GoSim::Net::Node
     @neighbors[addr] = get_peer(addr)
   end
 
-  def handle_packet(pkt)
-    @got_message = true
+  def start_flood(pkt)
+    forward_packet(pkt)
+  end
 
+  def handle_packet(pkt)
+    log "handle_packet #{@sim.time}: #{pkt.seq_num}"
+    @got_message = true
+    forward_packet(pkt)
+  end
+
+  def forward_packet(pkt)
     unless @pkt_cache.index(pkt.seq_num)
-      @neighbors.values.each {|n| n.handle_packet(pkt)}
+      @neighbors.values.each do |n| 
+        d = n.handle_packet(pkt)
+        d.add_errback {|f| @failed_packets += 1}
+      end
+
       @pkt_cache << pkt.seq_num
     end
   end
 
   def got_message?
     @got_message
-  end
-
-  def handle_failed_rpc(method, args)
-    @failed_packets += 1
   end
 end
 
@@ -70,30 +78,33 @@ class TestNetworkSimulation < Test::Unit::TestCase
       end
     end
 
-    @sim.schedule_event(:handle_packet, nodes.keys[0], 0, Packet.new(1))
+    @sim.schedule_event(:start_flood, nodes.keys[0], 0, Packet.new(1))
     @sim.run
 
     nodes.values.each { |node| assert(node.got_message?, "#{node.addr}->#{node.got_message?}") }
   end
 
   def test_liveness_and_failure
-    nodes = {}
+    @sim.verbose
     node_a = TestNode.new
     node_b = TestNode.new
 
     node_a.add_neighbor(node_b.addr)
 
-    2.times {|i| @sim.schedule_event(:handle_packet, node_a.sid, 0, Packet.new(i)) }
-    2.times {|i| @sim.schedule_event(:handle_packet, node_a.sid, 
-                                     i + GoSim::Net::LATENCY_MEAN * 2, 
-                                     Packet.new(i+2)) }
+    10.times {|i| @sim.schedule_event(:handle_packet, node_a.sid, i*1000, Packet.new(i)) }
     @sim.schedule_event(:handle_liveness_packet, 
                         node_b.sid, 
-                        GoSim::Net::LATENCY_MEAN * 2, 
+                        5000, 
                         GoSim::Net::LivenessPacket.new(false))
     @sim.run
 
-    assert_equal(2, node_a.failed_packets)
+    assert_equal(5, node_a.failed_packets)
+  end
+
+  def test_net_deferred
+    node_a = TestNode.new
+    node_b = TestNode.new
+
   end
 end
 
