@@ -158,6 +158,10 @@ module GoSim
       def reset_event_queue
         @event_queue = PQueue.new(proc {|x,y| x.time < y.time})
       end
+
+      def queue_size
+        @event_queue.size
+      end
     end
 
     def register_entity(sid, entity)
