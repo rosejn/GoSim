@@ -16,6 +16,7 @@ module GoSim
 
         GSL::Rng.env_setup
         @rand_gen = GSL::Rng.alloc("mt19937")
+        @rand_gen.set(0)
         @sim.add_observer(self)
         setup
       end
