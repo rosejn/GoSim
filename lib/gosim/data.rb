@@ -151,6 +151,9 @@ module GoSim
         end
 
         def [](set)
+          if !@@sets.has_key?(set)
+            DataSet.new(set)
+          end
           @@sets[set]
         end
       end
