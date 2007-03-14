@@ -20,8 +20,9 @@ module GoSim
       end
 
       def reopen
+        puts "tracefile name: #{@tracefile}"
         @trace = EventReader.new(@tracefile)
-        e = @trace.next
+        e = next_event()
         while e[0] == VIEW_MOD
           if !@requires_done
             begin
@@ -34,7 +35,7 @@ module GoSim
               load file
             end
           end
-          e = @trace.next
+          e = next_event()
         end
 
         @requires_done = true
@@ -48,7 +49,7 @@ module GoSim
 
       def queue_to(time)
         while time > @time
-          event = @trace.next
+          event = next_event()
           break if event.nil?
 
           puts "Event read #{event.inspect}"
@@ -64,6 +65,11 @@ module GoSim
         return @time
       end
 
+      def next_event
+        @trace.next
+      end
+      private :next_event
+
       def handle_data_set_add(event)
         if !DataSet[event[0]].nil?
           puts "#{event.inspect}"
@@ -76,24 +82,28 @@ module GoSim
       include Singleton
 
       def initialize
-        @running = false
         @last_time = -1
         @file = nil
         @sim = Simulation::instance
         @sim.add_observer(self)
       end
 
+      def running
+        @sim.running
+      end
+      private :running
+
       def update
-        @file.close
-        rewind
+        close
       end
 
       def rewind
-        @file = Zlib::GzipWriter.open(@output_file)
+        close
+        @file = Zlib::GzipWriter.open(@output_file)  if !@output_file.nil?
       end
 
       def set_output_file(file = './output/trace.gz')
-        if !@running
+        if !running()
           @output_file = file
           rewind 
         end
@@ -121,6 +131,7 @@ module GoSim
       def close
         flush_all
         @file.close  if !@file.nil?
+        @file = nil
       end
     end
 

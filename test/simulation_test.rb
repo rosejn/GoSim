@@ -17,7 +17,8 @@ class Producer < GoSim::Entity
 
     dir_name = File.join(File.dirname(__FILE__), "output")
     Dir.mkdir(dir_name) unless File.exists?(dir_name)
-    @dataset = GoSim::DataSet.new(:producer, dir_name)
+    @dataset = GoSim::Data::DataSet.new(:producer)
+    GoSim::Data::DataSetWriter.instance.set_output_file(dir_name + "/trace.gz")
   end
 
   def new_item(event)
@@ -57,11 +58,15 @@ end
 
 class TestSimulation < Test::Unit::TestCase
   def setup
-    @sim = GoSim::Simulation.reset
+    @sim = GoSim::Simulation.instance
     @sim.quiet
 
     # turn down logging so we don't see debug messages during unit testing
     @sim.trace_log = nil
+  end
+
+  def teardown
+    GoSim::Simulation.reset
   end
 
   def test_logging
@@ -93,14 +98,17 @@ class TestSimulation < Test::Unit::TestCase
 
   def test_data_set
     # Test the regular data logging
-    file = File.expand_path(File.join(File.dirname(__FILE__), "output", "producer"))
+    file = File.expand_path(File.join(File.dirname(__FILE__), "output", "trace.gz"))
     File.delete(file) if File.exists?(file)
 
     consumer = Consumer.new
     producer = Producer.new(consumer.sid, 2)
 
     @sim.run
-    assert_equal("0: #{producer.sid}, foo\n10: #{producer.sid}, foo\n", IO::read(file))
+
+    ds = GoSim::EventReader.new(file)
+    event = ds.next
+    assert_equal(:time, event[0])
 
     # Now try with an attached handler instead
     @sim.reset
@@ -108,7 +116,7 @@ class TestSimulation < Test::Unit::TestCase
     producer = Producer.new(consumer.sid, 5)
 
     count = 0
-    GoSim::DataSet.add_handler(:producer) { count += 1 }
+    GoSim::Data::DataSet.add_handler(:producer) { count += 1 }
     @sim.run
     assert_equal(5, count)
   end
@@ -125,5 +133,6 @@ class TestSimulation < Test::Unit::TestCase
     sim_timer = TimerOuter.new
     @sim.run(3 * TimerOuter::TIMEOUT_TIME)
     assert_equal(3, sim_timer.timer_count)
+
   end
 end

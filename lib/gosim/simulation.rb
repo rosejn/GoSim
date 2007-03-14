@@ -105,7 +105,7 @@ module GoSim
 
     PORT_NUMBER = 8765
 
-    attr_reader :trace, :time
+    attr_reader :trace, :time, :running
 
     class << self
       def run(end_time = 999999999)
@@ -113,6 +113,7 @@ module GoSim
       end
 
       def reset
+        GoSim::Data::DataSetWriter.instance.close
         Simulation.instance.reset
       end
 
@@ -229,7 +230,7 @@ module GoSim
       @time = end_time if @time < end_time
 
       # Make sure to write out all the data files when simulation finishes.
-      DataSet.flush_all
+      GoSim::Data::DataSetWriter.instance.flush_all
     end
 
     def stop
