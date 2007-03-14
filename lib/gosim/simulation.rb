@@ -6,30 +6,41 @@ module GoSim
 
     @@sid_counter = 0
     
+    # Used internally by Entity objects that require a unique simulation ID.
     def Entity.next_sid
       @@sid_counter += 1
       @@sid_counter - 1
     end
 
+    # Reset the entity ID counter, mostly here for easy unit testability.
     def Entity.reset
       @@sid_counter = 0
     end
 
+    # Create a new simulation Entity.  This will typically be run when super()
+    # is called from a child class.
     def initialize
       @sim = Simulation.instance
       reset
     end
 
+    # Reset an Entity so that it gets a new simulation ID and
+    # re-registers itself.  Typically just for unit testing.
     def reset
       @sid = Entity.next_sid
       @sim.register_entity(@sid, self)
       self
     end
 
-    def set_timeout(time, is_periodic = false, &block)
-      SimTimeout.new(time, is_periodic, block)
+    # Set a block of code to run after wait_time units of time.  If the
+    # is_periodic flag is set it will continue to run every wait_time units.
+    def set_timeout(wait_time, is_periodic = false, &block)
+      SimTimeout.new(wait_time, is_periodic, block)
     end
 
+    # Override the default inspect so entities with lots of state don't fill
+    # the screen during debug.  Implement your own inspect method to print
+    # useful information about your Entity.
     def inspect
       "<GoSim::Entity sid=#{@sid}>"
     end
@@ -59,14 +70,12 @@ module GoSim
 
     def setup_timer
       @active = true
-      @sim.schedule_event(:timeout, @sid, @time, self)
-      #log "Timeout started for #{@sid} in #{@time} units"
+      @sim.schedule_event(:handle_timeout, @sid, @time, self)
     end
     alias start reset
 
     def cancel
       @active = false
-      #log "Timeout stopped for #{@sid}"
     end
     alias stop cancel
 
@@ -76,7 +85,6 @@ module GoSim
     end
 
     def handle_timeout(timeout)
-      #log "sid -> #{@sid} running timeout"
       # Test twice in case the timeout was canceled in the block.
       @block.call(self) if @active
       setup_timer if @active and @is_periodic
@@ -123,6 +131,7 @@ module GoSim
 
     def initialize
       @trace = Logger.new(STDOUT)
+      #GC.disable
 
       reset
     end
@@ -131,7 +140,9 @@ module GoSim
       @time = 0
       @end_time = 1000
       @running = false
-      @event_queue = PQueue.new(proc {|x,y| x.time < y.time})
+      
+      reset_event_queue
+
       @entities = {}
       @handlers = {}
 
@@ -144,6 +155,16 @@ module GoSim
       self
     end
 
+    if not method_defined?(:reset_event_queue)
+      def reset_event_queue
+        @event_queue = PQueue.new(proc {|x,y| x.time < y.time})
+      end
+
+      def queue_size
+        @event_queue.size
+      end
+    end
+
     def register_entity(sid, entity)
       @entities[sid] = entity
       @handlers[sid] = {}
@@ -151,10 +172,6 @@ module GoSim
 
     def add_handler(sid, event_id, &block)
       @handlers[sid][event_id] = block
-    end
-
-    def queue_size
-      @event_queue.size
     end
 
     def num_entities
@@ -176,36 +193,40 @@ module GoSim
     alias trace_log= trace_log
 
     # Schedule a new event by putting it into the event queue
-    def schedule_event(event_id, dest_id, time, data)
-      #log "#{dest_id} is scheduling #{event_id} for #{@time + time}"
-      event_id = ("handle_" + event_id.to_s).to_sym
-      @event_queue.push(Event.new(event_id, dest_id, @time + time, data))
+    if not method_defined?(:schedule_event)
+      def schedule_event(event_id, dest_sid, time, data)
+        @event_queue.push(Event.new(event_id, dest_sid, @time + time, data))
+      end
     end
 
-    def run(end_time = MAX_INT) 
+    if not method_defined?(:run_main_loop)
+      def run_main_loop(end_time)
+        while(@running and (cur_event = @event_queue.top) and (cur_event.time <= end_time))
+          @event_queue.pop
+          @time = last_time = cur_event.time
+          @entities[cur_event.dest_id].send(cur_event.event_id, cur_event.data) 
+        end
+      end
+    end
+
+    def run(end_time = 2**30) 
       return if @running   # Disallow after starting once
       @running = true
 
       #log ("Running simulation until: #{end_time}")
       begin
-        while(@running and (cur_event = @event_queue.top) and (cur_event.time <= end_time))
-          #log ("Handling %s event at %d\n" % [cur_event.data.class, cur_event.time])
-
-          @event_queue.pop
-
-          @time = last_time = cur_event.time
-
-          @entities[cur_event.dest_id].send(cur_event.event_id, cur_event.data) 
-        end
+        run_main_loop(end_time)
       rescue Exception => e
-        error "GoSim error occurred sending:\n#{cur_event.data.inspect}\nto destination: #{cur_event.dest_id}.#{cur_event.event_id}"
-        puts "Exception: #{e}"
-        print e.backtrace.join("\n")
+        error "GoSim error occurred in main event loop!"
+        puts "Generated Exception: #{e}"
+        puts e.backtrace.join("\n")
         stop
       end
 
       @running = false
-      @time = last_time || end_time # Do this so we are at the correct time even if no events fired.
+      
+      # Do this so we are at the correct time even if no events fired.
+      @time = end_time if @time < end_time
 
       # Make sure to write out all the data files when simulation finishes.
       DataSet.flush_all

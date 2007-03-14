@@ -12,7 +12,7 @@ class Producer < GoSim::Entity
 
     # Schedule a bunch of new product events.
     num_items.times do |t| 
-      @sim.schedule_event(:item, @sid, t * 10, Item.new("foo", :receive)) 
+      @sim.schedule_event(:new_item, @sid, t * 10, Item.new("foo", :receive)) 
     end
 
     dir_name = File.join(File.dirname(__FILE__), "output")
@@ -20,8 +20,9 @@ class Producer < GoSim::Entity
     @dataset = GoSim::DataSet.new(:producer, dir_name)
   end
 
-  def handle_item(event)
-    @sim.schedule_event(:item, @neighbor, 5, event)
+  def new_item(event)
+    log {"got new #{event.class} event"}
+    @sim.schedule_event(:new_item, @neighbor, 5, event)
     @dataset.log(@sid, event.name)
   end
 end
@@ -34,7 +35,7 @@ class Consumer < GoSim::Entity
     @received = 0
   end
 
-  def handle_item(event)
+  def new_item(event)
     @received += 1
   end
 end
@@ -72,11 +73,21 @@ class TestSimulation < Test::Unit::TestCase
   end
 
   def test_scheduler
+    num_items = 10000
     consumer = Consumer.new
-    producer = Producer.new(consumer.sid, 10)
-    assert_equal(10, @sim.queue_size, "Schedule event not correctly adding to queue.")
+    producer = Producer.new(consumer.sid, num_items)
+    assert_equal(num_items, @sim.queue_size, "Schedule event not correctly adding to queue.")
 
     @sim.run
+    assert_equal(num_items, consumer.received)
+  end
+
+  def test_single_step
+    num_items = 10
+    consumer = Consumer.new
+    producer = Producer.new(consumer.sid, num_items)
+
+    (num_items * 10).times {|i| @sim.run(i) }
     assert_equal(10, consumer.received)
   end
 
@@ -89,7 +100,7 @@ class TestSimulation < Test::Unit::TestCase
     producer = Producer.new(consumer.sid, 2)
 
     @sim.run
-    assert_equal("0, #{producer.sid}, foo\n10, #{producer.sid}, foo\n", IO::read(file))
+    assert_equal("0: #{producer.sid}, foo\n10: #{producer.sid}, foo\n", IO::read(file))
 
     # Now try with an attached handler instead
     @sim.reset

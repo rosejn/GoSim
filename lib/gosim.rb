@@ -1,11 +1,19 @@
+$LOAD_PATH.unshift(File.expand_path(File.dirname(__FILE__)))
+
+require 'rational'
 require 'logger'
 require 'singleton'
 require 'observer'
 require 'yaml'
 require 'zlib'
 
-require 'pqueue'
-require 'gsl'
+begin
+  #require 'pqueue'
+  require 'event_queue'
+rescue RuntimeError => e
+  warn "event_queue extension not loaded! Loading ruby pqueue instead."
+  require 'pqueue'
+end
 
 module GoSim
   MAX_INT = 2**31
@@ -16,12 +24,12 @@ module GoSim
     @@log.level = Logger::FATAL
 
     # So that all derived classes have an easy accessor
-    def log(*args)
-      @@log.debug(*args)
+    def log(*args, &block)
+      @@log.debug(*args, &block)
     end
 
-    def error(*args)
-      @@log.fatal(*args)
+    def error(*args, &block)
+      @@log.fatal(*args, &block)
     end
 
     # Turn down logging all the way (nice for unit tests etc...)
@@ -36,6 +44,7 @@ module GoSim
 end
 
 require 'gosim/simulation'
+require 'gosim/defer'
 require 'gosim/network'
 require 'gosim/event_reader'
 require 'gosim/data'

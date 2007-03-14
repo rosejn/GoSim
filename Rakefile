@@ -1,29 +1,27 @@
 require 'rubygems' 
 require 'rake'
+require 'rake/clean'
 require 'rake/testtask'
 require 'rake/rdoctask'
+require 'tools/rakehelp'
+require 'fileutils'
+include FileUtils
 
-PKG_VERSION = "0.2"
+PKG_VERSION = "0.3"
 
 $VERBOSE = nil
-TEST_CHANGES_SINCE = Time.now - 600 # Recent tests = changed in last 10 minutes
 
 desc "Run all the unit tests"
-task :default => :test
+task :default => [:event_queue, :test]
 
-# Run all the unit tests
-desc "Run the unit tests in test"
-Rake::TestTask.new(:test) { |t|
-#  t.loader = :testrb
-  t.libs << "test"
-  t.test_files = FileList['test/*_test.rb']
-  t.verbose = false
-}
+setup_tests
+setup_clean(["ext/event_queue/*.{so,o}", "ext/event_queue/Makefile", "pkg"])
+setup_extension("event_queue", "event_queue")
 
 # Generate the RDoc documentation
 Rake::RDocTask.new(:doc) { |rdoc|
   rdoc.main = 'README'
-  rdoc.rdoc_files.include('lib/**/*.rb', 'README')
+  rdoc.rdoc_files.include('lib/**/*.rb', 'ext/**/*', 'README')
   rdoc.rdoc_files.include('GPL', 'COPYING')
   rdoc.rdoc_dir = 'docs/api'
   rdoc.title    = "GoSim -- Discrete Event Simulation System"
@@ -40,9 +38,11 @@ spec = Gem::Specification.new do |s|
   s.platform = Gem::Platform::RUBY 
   s.summary = "Flexible, discrete event simulation system." 
   s.description = "A discrete event simulator for exploring ideas."
+  s.required_ruby_version = '>= 1.8.4'
 
   s.files = FileList["{test,lib,docs,examples}/**/*"].to_a
   s.files += ["Rakefile", "README", "COPYING", "GPL" ]
+  s.test_files = Dir.glob('test/test_*.rb')
   s.require_path = "lib" 
   s.autorequire = "gosim" 
   s.has_rdoc = true 
@@ -60,6 +60,6 @@ Rake::GemPackageTask.new(spec) do |pkg|
 end
 
 desc 'Install the gem globally (requires sudo)'
-task :install => :package do |t|
+task :install => [:event_queue, :package] do |t|
   `gem install pkg/gosim-#{PKG_VERSION}.gem`
 end
