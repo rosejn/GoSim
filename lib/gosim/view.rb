@@ -29,6 +29,8 @@ module GoSim
       @glade['map_scroller'].add(@space_map)
 
       @sim = Simulation.instance
+      @virt_time = 0
+      @live = false   # ie, from a trace file
 
       @reset_handlers = []
 
@@ -48,11 +50,16 @@ module GoSim
       @play_stop_lbl = @glade["play_stop"]
     end
 
+    def live=(arg)
+      @live = arg  if @sim.time == 0
+    end
+
     def run
       Gtk.main
     end
 
     def on_quit
+      GoSim::Data::DataSetWriter::instance.flush_all
       Gtk.main_quit
     end
 
@@ -70,11 +77,10 @@ module GoSim
     def on_open_trace
       file = get_file_dialog("Open trace...")
       if(!file.nil?)
-
-
+        puts "opening #{file}"
+        @trace_events = GoSim::Data::DataSetReader.new(file)
       end
     end
-
 
     def on_open_live_sim
       show_error("Opening of simulations not currently supported from GUI.\nUse the command line.")
@@ -83,10 +89,21 @@ module GoSim
     def on_time_forward
       @forwarding = true
 
-      Thread.new {
-        @sim.run(@sim.time + @ticks_per_sec)
-      }
-      @cur_time.text = @sim.time.to_s
+      if !@live
+        if @trace_events.nil?
+          show_error("No trace has been opened.") 
+          return
+        else
+          @trace_events.queue_to(@virt_time + @ticks_per_sec)
+        end
+      end
+
+      Thread.new do
+        @sim.run(@virt_time + @ticks_per_sec) 
+      end
+
+      @virt_time += @ticks_per_sec
+      @cur_time.text = @virt_time.to_s
       Gtk.main_iteration while Gtk.events_pending?
 
       @forwarding = false
@@ -97,7 +114,7 @@ module GoSim
     end
 
     def on_time_play
-      print "play button\n"
+#      print "play button\n"
 
       @playing = !@playing
       if @playing
@@ -124,7 +141,8 @@ module GoSim
       on_time_play if @playing
 
       @sim.reset
-      @cur_time.text = @sim.time.to_s
+      @virt_time = 0
+      @cur_time.text = @virt_time.to_s
 
       @reset_handlers.each {|h| h.call }
     end
@@ -133,9 +151,7 @@ module GoSim
       @reset_handlers << block
     end
 
-    private
-
-    def show_error(mesg, title = "Error")
+    def show_message(mesg, title = "Message")
       # Create the dialog
       dialog = Gtk::Dialog.new(title, @main_window,
                                Gtk::Dialog::DESTROY_WITH_PARENT,
@@ -147,7 +163,12 @@ module GoSim
       # Add the message in a label, and show everything we've added to the dialog.
       
       dialog.vbox.add(Gtk::Label.new(("\n" + mesg + "\n").gsub("\n", "   \n   ")))
+      #dialog.run
       dialog.show_all
+    end
+
+    def show_error(mesg, title = "Error")
+      show_message(mesg, title)
     end
 
     def get_file_dialog(dialog_name = "Open...")
@@ -160,6 +181,8 @@ module GoSim
         file = fs.filename
       end
       fs.destroy
+
+      return file
     end
   end
 
@@ -227,5 +250,6 @@ module GoSim
     end
   end
 =end
+
 
 end

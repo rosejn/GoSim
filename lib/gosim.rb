@@ -1,12 +1,14 @@
 require 'logger'
 require 'singleton'
 require 'observer'
+require 'yaml'
+require 'zlib'
 
 require 'pqueue'
 require 'gsl'
 
 module GoSim
-  MAX_INT = 2**30
+  MAX_INT = 2**31
 
   module Base
     # TODO: Figure out what we want to do for a logging framework.
@@ -35,6 +37,7 @@ end
 
 require 'gosim/simulation'
 require 'gosim/network'
+require 'gosim/event_reader'
 require 'gosim/data'
 
 # Make the logger report simulation time instead of real-time.
