@@ -131,6 +131,7 @@ module GoSim
 
     def initialize
       @trace = Logger.new(STDOUT)
+      #GC.disable
 
       reset
     end
@@ -193,8 +194,8 @@ module GoSim
 
     # Schedule a new event by putting it into the event queue
     if not method_defined?(:schedule_event)
-      def schedule_event(event_id, dest_id, time, data)
-        @event_queue.push(Event.new(event_id, dest_id, @time + time, data))
+      def schedule_event(event_id, dest_sid, time, data)
+        @event_queue.push(Event.new(event_id, dest_sid, @time + time, data))
       end
     end
 

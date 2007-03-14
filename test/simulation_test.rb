@@ -21,6 +21,7 @@ class Producer < GoSim::Entity
   end
 
   def new_item(event)
+    log {"got new #{event.class} event"}
     @sim.schedule_event(:new_item, @neighbor, 5, event)
     @dataset.log(@sid, event.name)
   end
@@ -72,12 +73,13 @@ class TestSimulation < Test::Unit::TestCase
   end
 
   def test_scheduler
+    num_items = 10000
     consumer = Consumer.new
-    producer = Producer.new(consumer.sid, 10)
-    assert_equal(10, @sim.queue_size, "Schedule event not correctly adding to queue.")
+    producer = Producer.new(consumer.sid, num_items)
+    assert_equal(num_items, @sim.queue_size, "Schedule event not correctly adding to queue.")
 
     @sim.run
-    assert_equal(10, consumer.received)
+    assert_equal(num_items, consumer.received)
   end
 
   def test_single_step

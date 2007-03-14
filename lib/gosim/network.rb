@@ -5,7 +5,6 @@ module GoSim
 
     GSNetworkPacket = Struct.new(:id, :src, :dest, :data)
     FailedPacket = Struct.new(:dest, :data)
-    LivenessPacket = Struct.new(:alive)
 
     ERROR_NODE_FAILURE = 0
 
@@ -69,10 +68,10 @@ module GoSim
 
       # Called by simulation when a reset occurs
       def update
-        log "Resetting Topology..."
+        log {"Resetting Topology..."}
         reset
         @nodes = {}
-        log "Topology now has sid #{sid}"
+        log {"Topology now has sid #{sid}"}
       end
 
       def register_node(node)
@@ -123,7 +122,9 @@ module GoSim
       # Dispatches an RPC request to a specific method, and return a result
       # unless the method returns nil.
       def handle_rpc_request(request)
+        #puts "top of request"
         if @nodes[request.dest].alive?
+        #puts "1 request...#{request.inspect}"
 
           # If there is no response delete the deferred.
           # TODO: Maybe we want to signal something to the deferred here also?
@@ -134,6 +135,7 @@ module GoSim
                               rand(@mean_latency) + LATENCY_DEV,
                               RPCResponse.new(request.uid, result)) 
         else
+        #puts "2 request..."
           if @rpc_deferreds.has_key?(request.uid)
             @rpc_deferreds[request.uid].errback(Failure.new(request))
           end
@@ -141,6 +143,7 @@ module GoSim
       end
 
       def handle_rpc_response(response)
+        #puts "response...#{response}"
         if @rpc_deferreds.has_key?(response.uid)
           @rpc_deferreds[response.uid].callback(response.result)
         end
@@ -150,15 +153,18 @@ module GoSim
     class RPCInvalidMethodError < Exception; end
 
     class Peer
-      def initialize(local_node, remote_node)
-        @local_node = local_node
-        @remote_node = remote_node
+      attr_reader :addr
 
+      def initialize(local_node, remote_addr)
         @topo = Topology.instance
-      end
 
-      def addr
-        @remote_node.addr
+        @local_node = local_node
+        @remote_node = @topo.get_node(remote_addr)
+        if @remote_node
+          @addr = @remote_node.addr
+        else
+          @addr = nil
+        end
       end
 
       def method_missing(method, *args)
@@ -171,8 +177,8 @@ module GoSim
     class Node < Entity
       attr_reader :addr 
 
-      def initialize()
-        super()
+      def initialize
+        super
         @addr = @sid
         @topo = Topology.instance
         @alive = true
@@ -188,7 +194,7 @@ module GoSim
         @alive
       end
 
-      def alive=(status)
+      def alive(status)
         @alive = status
       end
 
@@ -198,20 +204,16 @@ module GoSim
 
       # Override this in your subclass to do custom demuxing.
       def recv_packet(pkt)
-        log "default recv_packet handler..."
-      end
-
-      def get_peer(addr)
-        Peer.new(self, @topo.get_node(addr))
+        log {"default recv_packet handler..."}
       end
 
       # Implement this method to do something specific for your application.
       def handle_failed_packet(pkt)
-        log "Got a failed packet! (#{pkt.data.class})"
+        log {"Got a failed packet! (#{pkt.data.class})"}
       end
 
       def handle_failed_rpc(method, data)
-        log "Got a failed rpc call: #{method}(#{data.join(', ')})"
+        log {"Got a failed rpc call: #{method}(#{data.join(', ')})"}
       end
     end
   end # module Net

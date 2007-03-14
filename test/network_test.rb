@@ -17,7 +17,7 @@ class TestNode < GoSim::Net::Node
   end
 
   def add_neighbor(addr)
-    @neighbors[addr] = get_peer(addr)
+    @neighbors[addr] = GoSim::Net::Peer.new(self, addr)
   end
 
   def start_flood(pkt)
@@ -90,10 +90,7 @@ class TestNetworkSimulation < Test::Unit::TestCase
     node_a.add_neighbor(node_b.addr)
 
     10.times {|i| @sim.schedule_event(:handle_packet, node_a.sid, i*1000, Packet.new(i)) }
-    @sim.schedule_event(:handle_liveness_packet, 
-                        node_b.sid, 
-                        5000, 
-                        GoSim::Net::LivenessPacket.new(false))
+    @sim.schedule_event(:alive, node_b.sid, 5000, false)
     @sim.run
 
     assert_equal(5, node_a.failed_packets)
