@@ -9,9 +9,15 @@ module GoSim
         super()
         @tracefile = trace
         reopen()
+
         @sim = Simulation::instance
         @sim.add_observer(self)
+
         @requires_done = false
+
+        @time_queue = []
+        @time_inc = 0
+        @read_time = 0
       end
 
       def update
@@ -56,9 +62,11 @@ module GoSim
 
           if event[0] == TIME_MOD
             @time = event[1]
+            @time_inc = 0
             puts "Set time to #{@time}"
           else
-            @sim.schedule_event(:data_set_add, @sid, @time - @sim.time, event)
+            @sim.schedule_event(:data_set_add, @sid, @time - @sim.time, [event, @time_inc])
+            @time_inc += 1
           end
         end
 
@@ -70,10 +78,17 @@ module GoSim
       end
       private :next_event
 
-      def handle_data_set_add(event)
-        if !DataSet[event[0]].nil?
-          puts "#{event.inspect}"
-          DataSet[event[0]].log(event[1]) #.each { | h | h.call(*event[1]) }
+      def data_set_add(event)
+        e = event[0]
+        if !DataSet[e[0]].nil?
+          if @read_time != @sim.time
+            @read_time = @sim.time
+            @time_queue.sort! { | x, y | x[1] <=> y[1] }
+            @time_queue.each { | x | DataSet[x[0][0]].log(x[0][1]) }
+            @time_queue.clear
+          else
+            @time_queue << event
+          end
         end
       end
     end #DataSetReader
