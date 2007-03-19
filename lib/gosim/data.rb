@@ -58,12 +58,9 @@ module GoSim
           event = next_event()
           break if event.nil?
 
-          puts "Event read #{event.inspect}"
-
           if event[0] == TIME_MOD
             @time = event[1]
             @time_inc = 0
-            puts "Set time to #{@time}"
           else
             @sim.schedule_event(:data_set_add, @sid, @time - @sim.time, [event, @time_inc])
             @time_inc += 1
@@ -86,9 +83,9 @@ module GoSim
             @time_queue.sort! { | x, y | x[1] <=> y[1] }
             @time_queue.each { | x | DataSet[x[0][0]].log(x[0][1]) }
             @time_queue.clear
-          else
-            @time_queue << event
           end
+
+          @time_queue << event
         end
       end
     end #DataSetReader

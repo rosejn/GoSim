@@ -21,7 +21,7 @@ module GoSim
       @cur_time = @glade['current_time']
 
       @controls = @glade['controls']
-      @data = @glade['data']
+      @data = @glade['data_treeview']
       @log = @glade['log']
       @file_selection = @glade['file_selection']
 

@@ -319,10 +319,11 @@
 
 	      <child>
 		<widget class="GtkVBox" id="vbox2">
+		  <property name="border_width">1</property>
 		  <property name="width_request">260</property>
 		  <property name="visible">True</property>
 		  <property name="homogeneous">False</property>
-		  <property name="spacing">0</property>
+		  <property name="spacing">2</property>
 
 		  <child>
 		    <widget class="GtkFrame" id="frame3">
@@ -475,7 +476,7 @@
 		    <widget class="GtkExpander" id="controls">
 		      <property name="visible">True</property>
 		      <property name="can_focus">True</property>
-		      <property name="expanded">False</property>
+		      <property name="expanded">True</property>
 		      <property name="spacing">0</property>
 
 		      <child>
@@ -513,23 +514,35 @@
 		  </child>
 
 		  <child>
+		    <widget class="GtkHSeparator" id="hseparator1">
+		      <property name="visible">True</property>
+		    </widget>
+		    <packing>
+		      <property name="padding">2</property>
+		      <property name="expand">False</property>
+		      <property name="fill">True</property>
+		    </packing>
+		  </child>
+
+		  <child>
 		    <widget class="GtkExpander" id="data">
 		      <property name="visible">True</property>
 		      <property name="can_focus">True</property>
-		      <property name="expanded">False</property>
+		      <property name="expanded">True</property>
 		      <property name="spacing">0</property>
 
 		      <child>
 			<widget class="GtkScrolledWindow" id="scrolledwindow3">
+			  <property name="height_request">190</property>
 			  <property name="visible">True</property>
 			  <property name="can_focus">True</property>
-			  <property name="hscrollbar_policy">GTK_POLICY_ALWAYS</property>
-			  <property name="vscrollbar_policy">GTK_POLICY_ALWAYS</property>
+			  <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
+			  <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
 			  <property name="shadow_type">GTK_SHADOW_IN</property>
 			  <property name="window_placement">GTK_CORNER_TOP_LEFT</property>
 
 			  <child>
-			    <widget class="GtkTreeView" id="treeview1">
+			    <widget class="GtkTreeView" id="data_treeview">
 			      <property name="visible">True</property>
 			      <property name="can_focus">True</property>
 			      <property name="headers_visible">True</property>
@@ -575,10 +588,21 @@
 		  </child>
 
 		  <child>
+		    <widget class="GtkHSeparator" id="hseparator2">
+		      <property name="visible">True</property>
+		    </widget>
+		    <packing>
+		      <property name="padding">2</property>
+		      <property name="expand">False</property>
+		      <property name="fill">True</property>
+		    </packing>
+		  </child>
+
+		  <child>
 		    <widget class="GtkExpander" id="expander3">
 		      <property name="visible">True</property>
 		      <property name="can_focus">True</property>
-		      <property name="expanded">True</property>
+		      <property name="expanded">False</property>
 		      <property name="spacing">0</property>
 
 		      <child>
@@ -637,13 +661,13 @@
 		    </widget>
 		    <packing>
 		      <property name="padding">0</property>
-		      <property name="expand">False</property>
+		      <property name="expand">True</property>
 		      <property name="fill">True</property>
 		    </packing>
 		  </child>
 		</widget>
 		<packing>
-		  <property name="shrink">True</property>
+		  <property name="shrink">False</property>
 		  <property name="resize">True</property>
 		</packing>
 	      </child>
