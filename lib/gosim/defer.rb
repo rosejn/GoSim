@@ -80,9 +80,15 @@ module GoSim
       def errback(result)
         raise NotFailureError unless is_failure?(result)
 
-        @called = true
-        @result = result
-        run_callbacks
+        callback(result)
+      end
+
+      def has_callbacks?
+        @callbacks.any? { | cb | cb != PASSTHRU }
+      end
+
+      def has_errbacks?
+        @errbacks.any? { | eb | eb != PASSTHRU }
       end
 
       # Execute the callbacks in sequence, passing the result of each callback to
@@ -92,6 +98,7 @@ module GoSim
       def run_callbacks
         return if @paused > 0
 
+        # Transverse chains
         while @callbacks.any?
           begin
             cb = @callbacks.shift

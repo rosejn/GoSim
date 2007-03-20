@@ -45,6 +45,36 @@ module GoSim
         super()
       end
 
+      def default_callback(callback = nil, &block)
+        callback = callback || block
+
+        if callback
+          raise NotCallableError unless is_callable?(callback)
+          @default_cb = callback
+        end
+      end
+
+      def default_errback(errback = nil, &block)
+        errback = errback || block
+
+        if errback
+          raise NoterrableError unless is_callable?(errback)
+          @default_eb = errback
+        end
+      end
+
+      def run_callbacks
+        # Check for defaults.  Call the appropriate one only if no calls have
+        # been provided
+        if is_failure?(@result) 
+          @default_eb.call(@result) if !has_errbacks? && @default_eb
+        elsif !has_callbacks? && @default_cb
+          @default_cb.call(@result)
+        end
+
+        super()
+      end
+
       def no_return
         Topology.instance.remove_deferred(@uid)
       end
@@ -165,12 +195,27 @@ module GoSim
         else
           @addr = nil
         end
+
+        @default_cb = nil
+        @default_eb = nil
       end
 
       def method_missing(method, *args)
         raise RPCInvalidMethodError.new("#{method} not available on target node!") unless @remote_node.respond_to?(method)
 
-        @topo.rpc_request(@local_node.addr, @remote_node.addr, method, args) 
+        deferred = @topo.rpc_request(@local_node.addr, @remote_node.addr, method, args) 
+        deferred.default_callback(@default_cb) if @default_cb
+        deferred.default_errback(@default_eb) if @default_eb
+
+        return deferred
+      end
+
+      def add_default_callback(callback = nil, &block)
+        @default_cb = callback || block
+      end
+
+      def add_default_errback(errback = nil, &block)
+        @default_eb = errback || block
       end
     end
 
