@@ -76,10 +76,12 @@ module GoSim
 
     def on_open_trace
       file = get_file_dialog("Open trace...")
-      if(!file.nil?)
-        puts "opening #{file}"
-        @trace_events = GoSim::Data::DataSetReader.new(file)
-      end
+      set_trace(file) if(!file.nil?)
+    end
+
+    def set_trace(filename)
+      puts "opening #{filename}"
+      @trace_events = GoSim::Data::DataSetReader.new(filename)
     end
 
     def on_open_live_sim

@@ -1,15 +1,35 @@
 #!/usr/bin/env ruby
 
+# == Synopsis
+#
+# goviz: View a live simulation or a trace
+#
+# == Usage
+#
+# goviz [flags]
+#
+# -h, --help:
+#    Show this help
+#
+# -t tracefile, --trace tracefile
+#    Load a tracefile for viewing.
+#
+# -l simulation, --live simulation
+#    Load a live simulation for viewing.  The simulation must be goviz aware,
+#    and load it's viz module.
+#
+# In general, it is a good idea to have your paths setup before running goviz.
+# Although goviz will ask you to select view modules if it can't find them in
+# the path, this is cumbersome and slow.
+
 $LOAD_PATH.unshift(File.expand_path(File.join(File.dirname(__FILE__), 'lib')))
 
 require 'rational'
 require 'gosim/view'
 require 'rdoc/usage'
 
-if ARGV[0] and File.exists?(ARGV[0])
-#  $LOAD_PATH.unshift(File.expand_path(File.dirname(ARGV[0])))
-
-  puts "Loading simulation file: #{File.basename(ARGV[0])}"
+def load_live(filename)
+  puts "Loading simulation file: #{File.basename(filename)}"
 
   # Tell the view that we are in live sim mode
   GoSim::View::instance.live = true
@@ -18,7 +38,34 @@ if ARGV[0] and File.exists?(ARGV[0])
   # make sure to correctly flush the Zlib stream
   at_exit { GoSim::Data::DataSetWriter.instance.close() }
 
-  load ARGV[0]
+  load filename
+end
+
+def load_trace(filename)
+  puts "Loading trace file: #{File.basename(filename)}"
+
+  # Tell the view that we are in trace mode
+  view = GoSim::View::instance
+  view.live = false
+  
+  #set trace file
+  view.set_trace(filename)
+end
+
+opts = GetoptLong.new(
+                      ['--help',  '-h', GetoptLong::NO_ARGUMENT],
+                      ['--trace', '-t', GetoptLong::REQUIRED_ARGUMENT],
+                      ['--live',  '-l', GetoptLong::REQUIRED_ARGUMENT])
+
+opts.each do | opt, arg |
+  case opt
+  when '--help'
+    RDoc::usage
+  when '--trace'
+    load_trace(arg) if File.exists?(arg)
+  when '--live'
+    load_live(arg) if File.exists?(arg)
+  end
 end
 
 GoSim::View.instance.run
