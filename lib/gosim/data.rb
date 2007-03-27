@@ -149,17 +149,19 @@ module GoSim
 
     class DataSet
       @@sets = {}
-      @@handlers = {}
+#      @@handlers = {}
 
       class << self
 
         def add_handler(key, &block)
-          if !@@handlers.has_key?(key)
+          EventCast.instance.add_handler(key, block)
+
+          if !@@sets.has_key?(key)
             DataSet.new(key)
           end
 
-          @@handlers[key] ||= []
-          @@handlers[key] << block
+#          @@handlers[key] ||= []
+#          @@handlers[key] << block
         end
 
         def [](set)
@@ -178,12 +180,13 @@ module GoSim
       # TODO: Maybe we want to log while also visualizing?
       # DataSet::flush_all
       def log(*args)
-        if @@handlers[@name]
-          @@handlers[@name].each {|h| h.call(*args) }
-        end
-
         # Always log for now.
         DataSetWriter::instance.log(@name, args)
+
+        EventCast.instance.publish(@name, *args)
+#        if @@handlers[@name]
+#          @@handlers[@name].each {|h| h.call(*args) }
+#        end
       end
     end #DataSet
 

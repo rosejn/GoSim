@@ -48,6 +48,7 @@ require 'gosim/defer'
 require 'gosim/network'
 require 'gosim/event_reader'
 require 'gosim/data'
+require 'gosim/event_cast'
 
 # Make the logger report simulation time instead of real-time.
 class Logger #:nodoc:
