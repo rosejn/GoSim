@@ -168,6 +168,7 @@ module GoSim
         #puts "2 request..."
           if @rpc_deferreds.has_key?(request.uid)
             @rpc_deferreds[request.uid].errback(Failure.new(request))
+            remove_deferred(request.uid)
           end
         end
       end
@@ -176,6 +177,7 @@ module GoSim
         #puts "response...#{response}"
         if @rpc_deferreds.has_key?(response.uid)
           @rpc_deferreds[response.uid].callback(response.result)
+          remove_deferred(response.uid)
         end
       end
     end
