@@ -120,7 +120,7 @@ module GoSim
       end
 
       def is_failure?(obj)
-        obj.is_a?(Net::Failure) || obj.nil?
+        obj.is_a?(Net::Failure)
       end
     end
   end

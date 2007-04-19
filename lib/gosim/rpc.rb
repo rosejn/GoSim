@@ -122,7 +122,7 @@ module GoSim
           @sim.schedule_event(:handle_rpc_response,
                               request.src, 
                               rand(@topo.latency_mean) + @topo.latency_base,
-                              RPC::RPCErrorResponse.new(request.uid)) 
+                              RPC::RPCErrorResponse.new(request.uid, Failure.new(request))) 
         end
       end
 
