@@ -46,6 +46,7 @@ end
 require 'gosim/simulation'
 require 'gosim/defer'
 require 'gosim/network'
+require 'gosim/rpc'
 require 'gosim/event_reader'
 require 'gosim/data'
 require 'gosim/event_cast'

@@ -5,7 +5,7 @@ require 'gosim'
 
 Packet = Struct.new(:seq_num)
 
-class TestNode < GoSim::Net::Node
+class TestNode < GoSim::Net::RPCNode
   attr_reader :failed_packets
 
   def initialize
@@ -89,8 +89,10 @@ class TestNetworkSimulation < Test::Unit::TestCase
 
     node_a.add_neighbor(node_b.addr)
 
+    @topo.set_latency(0, 0)
+
+    @sim.schedule_event(:alive, node_b.sid, 4999, false)
     10.times {|i| @sim.schedule_event(:handle_packet, node_a.sid, i*1000, Packet.new(i)) }
-    @sim.schedule_event(:alive, node_b.sid, 5000, false)
     @sim.run
 
     assert_equal(5, node_a.failed_packets)

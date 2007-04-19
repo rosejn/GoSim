@@ -1,99 +1,30 @@
 module GoSim
   module Net
-    LATENCY_MEAN = 100
-    LATENCY_DEV  = 50
+    LATENCY_MEAN = 150
+    LATENCY_BASE = 30
 
     GSNetworkPacket = Struct.new(:id, :src, :dest, :data)
     FailedPacket = Struct.new(:dest, :data)
 
     ERROR_NODE_FAILURE = 0
 
-    class RPCRequest
-      attr_reader :uid, :src, :dest, :method, :args
-
-      @@rpc_counter = 0
-
-      def RPCRequest.next_uid
-        @@rpc_counter += 1
-      end
-
-      def initialize(src, dest, method, args)
-        @src = src
-        @dest = dest
-        @method = method
-        @args = args
-
-        @uid = RPCRequest.next_uid
-      end
-    end
-
-    class RPCResponse
-      attr_reader :uid, :result
-
-      def initialize(uid, result)
-        @uid = uid
-        @result = result
-      end
-    end
-
-    # Add a no-return method to Deferred so it can clear state for methods
-    # without return values.
-    class RPCDeferred < Deferred
-      def initialize(uid = nil)
-        @uid = uid
-
-        super()
-      end
-
-      def default_callback(callback = nil, &block)
-        callback = callback || block
-
-        if callback
-          raise NotCallableError unless is_callable?(callback)
-          @default_cb = callback
-        end
-      end
-
-      def default_errback(errback = nil, &block)
-        errback = errback || block
-
-        if errback
-          raise NoterrableError unless is_callable?(errback)
-          @default_eb = errback
-        end
-      end
-
-      def run_callbacks
-        # Check for defaults.  Call the appropriate one only if no calls have
-        # been provided
-        if is_failure?(@result) 
-          @default_eb.call(@result) if !has_errbacks? && @default_eb
-        elsif !has_callbacks? && @default_cb
-          @default_cb.call(@result)
-        end
-
-        super()
-      end
-
-      def no_return
-        Topology.instance.remove_deferred(@uid)
-      end
-    end
-
     class Topology < Entity
       include Singleton
+
+        attr_reader :latency_mean, :latency_base
 
       def initialize()
         super()
 
         @sim.add_observer(self)
         @nodes = {}
-        @rpc_deferreds = {}
+#        @rpc_deferreds = {}
+        set_latency()
       end
 
-      def set_latency(latency_mean = LATENCY_MEAN, latency_dev = LATENCY_DEV)
+      def set_latency(latency_mean = LATENCY_MEAN, latency_base = LATENCY_BASE)
         @latency_mean = latency_mean
-        @latency_dev = latency_dev
+        @latency_base = latency_base
       end
 
       # Called by simulation when a reset occurs
@@ -111,17 +42,14 @@ module GoSim
       def get_node(addr)
         @nodes[addr]
       end
-
-      def remove_deferred(uid)
-        @rpc_deferreds.delete(uid)
-      end
+#      private :get_node
 
       # Simple send packet that is always handled by Node#recv_packet
       def send_packet(src, receivers, packet)
         [*receivers].each do |receiver| 
           @sim.schedule_event(:handle_packet, 
                               @sid, 
-                              rand(@mean_latency) + LATENCY_DEV,
+                              rand(@latency_mean) + @latency_base,
                               GSNetworkPacket.new(id, src, receiver, packet)) 
         end
       end
@@ -134,55 +62,7 @@ module GoSim
                               FailedPacket.new(packet.dest, packet.data))
         end
       end
-
-      # Send an rpc request that gets handled by a specific method on the receiver
-      def rpc_request(src, dest, method, args)
-        request = RPCRequest.new(src, dest, method, args) 
-        @sim.schedule_event(:handle_rpc_request, 
-                            @sid, 
-                            rand(@mean_latency) + LATENCY_DEV,
-                            request)
-
-        deferred = RPCDeferred.new(request.uid)
-        @rpc_deferreds[request.uid] = deferred
-
-        return deferred
-      end
-
-      # Dispatches an RPC request to a specific method, and return a result
-      # unless the method returns nil.
-      def handle_rpc_request(request)
-        #puts "top of request"
-        if @nodes[request.dest].alive?
-        #puts "1 request...#{request.inspect}"
-
-          # If there is no response delete the deferred.
-          # TODO: Maybe we want to signal something to the deferred here also?
-          result = @nodes[request.dest].send(request.method, *request.args)
-
-          @sim.schedule_event(:handle_rpc_response,
-                              @sid, 
-                              rand(@mean_latency) + LATENCY_DEV,
-                              RPCResponse.new(request.uid, result)) 
-        else
-        #puts "2 request..."
-          if @rpc_deferreds.has_key?(request.uid)
-            @rpc_deferreds[request.uid].errback(Failure.new(request))
-            remove_deferred(request.uid)
-          end
-        end
-      end
-
-      def handle_rpc_response(response)
-        #puts "response...#{response}"
-        if @rpc_deferreds.has_key?(response.uid)
-          @rpc_deferreds[response.uid].callback(response.result)
-          remove_deferred(response.uid)
-        end
-      end
     end
-
-    class RPCInvalidMethodError < Exception; end
 
     class Peer
       attr_reader :addr
@@ -203,9 +83,9 @@ module GoSim
       end
 
       def method_missing(method, *args)
-        raise RPCInvalidMethodError.new("#{method} not available on target node!") unless @remote_node.respond_to?(method)
+        raise RPC::RPCInvalidMethodError.new("#{method} not available on target node!") unless @remote_node.respond_to?(method)
 
-        deferred = @topo.rpc_request(@local_node.addr, @remote_node.addr, method, args) 
+        deferred = @local_node.rpc_request(@local_node.addr, @remote_node.addr, method, args) 
         deferred.default_callback(@default_cb) if @default_cb
         deferred.default_errback(@default_eb) if @default_eb
 
@@ -259,9 +139,6 @@ module GoSim
         log {"Got a failed packet! (#{pkt.data.class})"}
       end
 
-      def handle_failed_rpc(method, data)
-        log {"Got a failed rpc call: #{method}(#{data.join(', ')})"}
-      end
     end
   end # module Net
 end # module GoSim
