@@ -1,5 +1,8 @@
 module GoSim
   module RPC
+
+    class RPCInvalidMethodError < Exception; end
+
     class RPCRequest
       attr_reader :uid, :src, :dest, :method, :args
 
@@ -72,8 +75,7 @@ module GoSim
       end
     end
 
-    class RPCInvalidMethodError < Exception; end
-  end
+  end  # RPC
 
   module Net
     class RPCNode < Net::Node
@@ -82,6 +84,19 @@ module GoSim
 
         @topo = Topology::instance
         @rpc_deferreds = {}
+
+        @receive_aspects = []
+        @send_aspects = []
+      end
+
+      def insert_receive_aspect(method = nil, &block)
+        aspect = method || block
+        @receive_aspects << aspect
+      end
+
+      def insert_send_aspect(method = nil, &block)
+        aspect = method || block
+        @send_aspects << aspect
       end
 
       def remove_deferred(uid)
@@ -91,13 +106,18 @@ module GoSim
       # Send an rpc request that gets handled by a specific method on the receiver
       def rpc_request(src, dest, method, args)
         request = RPC::RPCRequest.new(src, dest, method, args) 
-        @sim.schedule_event(:handle_rpc_request, 
-                            dest, 
-                            rand(@topo.latency_mean) + @topo.latency_base,
-                            request)
 
         deferred = RPC::RPCDeferred.new(request.uid)
         @rpc_deferreds[request.uid] = deferred
+
+        request = @send_aspects.inject(request) do | x, aspect | 
+          x = aspect.call(method, x) 
+        end
+
+        @sim.schedule_event(:handle_rpc_request, 
+                            dest, 
+                            rand(@topo.latency_mean) + @topo.latency_base,
+                            [method, request])
 
         return deferred
       end
@@ -105,28 +125,48 @@ module GoSim
       # Dispatches an RPC request to a specific method, and return a result
       # unless the method returns nil.
       def handle_rpc_request(request)
+        method = request[0]
+        request = request[1]
+
         #puts "top of request"
         if alive?
           #puts "1 request...#{request.inspect}"
+          #
+          request = @receive_aspects.inject(request) do | x, aspect | 
+            x = aspect.call(method, x) 
+          end
 
           # If there is no response delete the deferred.
           # TODO: Maybe we want to signal something to the deferred here also?
           result = send(request.method, *request.args)
 
+          response = RPC::RPCResponse.new(request.uid, result)
+          response = @send_aspects.inject(response) do | x, aspect |
+            x = aspect.call(method, x) 
+          end
+
           @sim.schedule_event(:handle_rpc_response,
                               request.src, 
                               rand(@topo.latency_mean) + @topo.latency_base,
-                              RPC::RPCResponse.new(request.uid, result)) 
+                              [method, response]) 
         else
           #puts "2 request..."
+          response = RPC::RPCErrorResponse.new(request.uid, Failure.new(request))
           @sim.schedule_event(:handle_rpc_response,
                               request.src, 
                               rand(@topo.latency_mean) + @topo.latency_base,
-                              RPC::RPCErrorResponse.new(request.uid, Failure.new(request))) 
+                              [method, response]) 
         end
       end
 
       def handle_rpc_response(response)
+        method = response[0]
+        response = response[1]
+
+        response = @receive_aspects.inject(response) do | x, aspect | 
+          x = aspect.call(method, x) 
+        end
+
         #puts "response...#{response}"
         if @rpc_deferreds.has_key?(response.uid)
           if response.class == RPC::RPCErrorResponse
