@@ -36,6 +36,7 @@ module GoSim
     class RPCDeferred < Net::Deferred
       def initialize(uid = nil)
         @uid = uid
+        @default_eb = @default_cb = nil
 
         super()
       end
@@ -128,14 +129,14 @@ module GoSim
         method = request[0]
         request = request[1]
 
+        request = @receive_aspects.inject(request) do | x, aspect | 
+          x = aspect.call(method, x) 
+        end
+
         #puts "top of request"
         if alive?
           #puts "1 request...#{request.inspect}"
           #
-          request = @receive_aspects.inject(request) do | x, aspect | 
-            x = aspect.call(method, x) 
-          end
-
           # If there is no response delete the deferred.
           # TODO: Maybe we want to signal something to the deferred here also?
           result = send(request.method, *request.args)

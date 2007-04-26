@@ -149,6 +149,7 @@ module GoSim
 
     class DataSet
       @@sets = {}
+      @@off = false
 #      @@handlers = {}
 
       class << self
@@ -170,6 +171,10 @@ module GoSim
           end
           @@sets[set]
         end
+
+        def silent(state = true)
+          @@off = state
+        end
       end
 
       def initialize(name)
@@ -181,7 +186,7 @@ module GoSim
       # DataSet::flush_all
       def log(*args)
         # Always log for now.
-        DataSetWriter::instance.log(@name, args)
+        DataSetWriter::instance.log(@name, args)  if !@@off
 
         EventCast.instance.publish(@name, *args)
 #        if @@handlers[@name]

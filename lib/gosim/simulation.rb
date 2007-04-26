@@ -34,8 +34,8 @@ module GoSim
 
     # Set a block of code to run after wait_time units of time.  If the
     # is_periodic flag is set it will continue to run every wait_time units.
-    def set_timeout(wait_time, is_periodic = false, &block)
-      SimTimeout.new(wait_time, is_periodic, block)
+    def set_timeout(wait_time, is_periodic = false, data = nil, method = nil, &block)
+      SimTimeout.new(wait_time, is_periodic, data, method || block)
     end
 
     # Override the default inspect so entities with lots of state don't fill
@@ -57,37 +57,48 @@ module GoSim
 
     attr_reader :time, :is_periodic, :active
 
-    def initialize(time, is_periodic, block)
+    def initialize(time, is_periodic, data, block)
       super()
 
       @time = time
       @is_periodic = is_periodic
       @block = block
       @active = true
+      @data = data
 
       setup_timer
     end
 
     def setup_timer
-      @active = true
       @sim.schedule_event(:handle_timeout, @sid, @time, self)
     end
-    alias start reset
+
+    private :setup_timer
 
     def cancel
       @active = false
+      @sim.unregister_entity(@sid, self)
     end
     alias stop cancel
 
-    def start
-      @active = true
-      setup_timer
-    end
-
     def handle_timeout(timeout)
       # Test twice in case the timeout was canceled in the block.
-      @block.call(self) if @active
-      setup_timer if @active and @is_periodic
+      #puts @is_periodic
+      if @active
+        if @data
+          @block.call(self, @data) 
+        else
+          @block.call(self)
+        end
+      end
+
+      if @active && @is_periodic
+        setup_timer
+      end
+
+      if !@is_periodic
+        @sim.unregister_entity(@sid, self)
+      end
     end
 
     def inspect
@@ -169,6 +180,11 @@ module GoSim
     def register_entity(sid, entity)
       @entities[sid] = entity
       @handlers[sid] = {}
+    end
+
+    def unregister_entity(sid, entity)
+      @entities.delete(sid)
+      @handlers.delete(sid)
     end
 
     def add_handler(sid, event_id, &block)
