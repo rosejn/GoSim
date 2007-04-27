@@ -83,7 +83,6 @@ module GoSim
       def initialize 
         super
 
-        @topo = Topology::instance
         @rpc_deferreds = {}
 
         @receive_aspects = []
@@ -102,6 +101,41 @@ module GoSim
 
       def remove_deferred(uid)
         @rpc_deferreds.delete(uid)
+      end
+
+      def rpc_error_helper(src, dest, method, args)
+        request = RPC::RPCRequest.new(src, dest, method, args) 
+
+        deferred = RPC::RPCDeferred.new(request.uid)
+        @rpc_deferreds[request.uid] = deferred
+
+        @send_aspects.inject(request) do | x, aspect | 
+          x = aspect.call(method, x) 
+        end
+        
+        response = RPC::RPCErrorResponse.new(request.uid, Failure.new(request))
+        
+        @sim.schedule_event(:handle_rpc_error, 
+                            src, 
+                            rand(@topo.latency_mean) * 2  + @topo.latency_base * 2,
+                            [method, response])
+
+        return deferred
+      end
+
+      def handle_rpc_error(response)
+        method = response[0]
+        response = response[1]
+
+        response = @receive_aspects.inject(response) do | x, aspect | 
+          x = aspect.call(method, x) 
+        end
+
+        #puts "response...#{response}"
+        if @rpc_deferreds.has_key?(response.uid)
+          @rpc_deferreds[response.uid].errback(response.result)
+          remove_deferred(response.uid)
+        end
       end
 
       # Send an rpc request that gets handled by a specific method on the receiver
@@ -134,11 +168,9 @@ module GoSim
         end
 
         #puts "top of request"
-        if alive?
+        if @topo.alive?(addr)
           #puts "1 request...#{request.inspect}"
-          #
-          # If there is no response delete the deferred.
-          # TODO: Maybe we want to signal something to the deferred here also?
+          
           result = send(request.method, *request.args)
 
           response = RPC::RPCResponse.new(request.uid, result)

@@ -32,6 +32,10 @@ module GoSim
       self
     end
 
+    def die
+      @sim.unregister_entity(@sid)
+    end
+
     # Set a block of code to run after wait_time units of time.  If the
     # is_periodic flag is set it will continue to run every wait_time units.
     def set_timeout(wait_time, is_periodic = false, data = nil, method = nil, &block)
@@ -77,7 +81,7 @@ module GoSim
 
     def cancel
       @active = false
-      @sim.unregister_entity(@sid, self)
+      die()
     end
     alias stop cancel
 
@@ -97,7 +101,7 @@ module GoSim
       end
 
       if !@is_periodic
-        @sim.unregister_entity(@sid, self)
+        die()
       end
     end
 
@@ -182,7 +186,7 @@ module GoSim
       @handlers[sid] = {}
     end
 
-    def unregister_entity(sid, entity)
+    def unregister_entity(sid)
       @entities.delete(sid)
       @handlers.delete(sid)
     end

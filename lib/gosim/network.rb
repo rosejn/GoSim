@@ -39,10 +39,18 @@ module GoSim
         @nodes[node.addr] = node
       end
 
+      def unregister_node(node)
+        @nodes.delete(node.addr)
+      end
+
       def get_node(addr)
         @nodes[addr]
       end
 #      private :get_node
+      
+      def alive?(addr)
+        return !@nodes[addr].nil?
+      end
 
       # Simple send packet that is always handled by Node#recv_packet
       def send_packet(src, receivers, packet)
@@ -68,24 +76,27 @@ module GoSim
       attr_reader :addr
 
       def initialize(local_node, remote_addr)
-        @topo = Topology.instance
-
         @local_node = local_node
-        @remote_node = @topo.get_node(remote_addr)
-        if @remote_node
-          @addr = @remote_node.addr
-        else
-          @addr = nil
-        end
+        @addr = remote_addr
 
         @default_cb = nil
         @default_eb = nil
       end
 
-      def method_missing(method, *args)
-        raise RPC::RPCInvalidMethodError.new("#{method} not available on target node!") unless @remote_node.respond_to?(method)
+      def remote_node
+        return Topology::instance.get_node(@addr)
+      end
 
-        deferred = @local_node.rpc_request(@local_node.addr, @remote_node.addr, method, args) 
+      def method_missing(method, *args)
+        if remote_node.nil?
+          return @local_node.rpc_error_helper(@local_node.addr, @addr, method, args)
+        end
+
+        if !remote_node.respond_to?(method)
+          raise RPC::RPCInvalidMethodError.new("#{method} not available on target node!")
+        end
+
+        deferred = @local_node.rpc_request(@local_node.addr, @addr, method, args) 
         deferred.default_callback(@default_cb) if @default_cb
         deferred.default_errback(@default_eb) if @default_eb
 
@@ -107,7 +118,7 @@ module GoSim
       def initialize
         super
         @addr = @sid
-        @topo = Topology.instance
+        @topo = Topology::instance
         @alive = true
 
         @topo.register_node(self)
@@ -117,11 +128,14 @@ module GoSim
         @alive = pkt.alive
       end
 
-      def alive?
-        @alive
-      end
-
       def alive(status)
+        if status == false
+          @topo.unregister_node(self)
+        else
+          reset()
+          @topo.register_node(self)
+        end
+
         @alive = status
       end
 
