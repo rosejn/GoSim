@@ -168,7 +168,7 @@ module GoSim
         end
 
         #puts "top of request"
-        if @topo.alive?(addr)
+        if @topo.alive?(@addr)
           #puts "1 request...#{request.inspect}"
           
           result = send(request.method, *request.args)

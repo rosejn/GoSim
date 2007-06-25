@@ -88,7 +88,8 @@ static VALUE run_main_loop(
 		VALUE self,
 		VALUE end_time)
 {
-	VALUE running = rb_ivar_get(self, rb_intern("@running"));
+	VALUE running_var_name = rb_intern("@running");
+	VALUE running = rb_ivar_get(self, running_var_name);
 	VALUE data_hash = rb_cvar_get(rb_simulation, data_hash_id);
 
 	Event *cur_event = fh_min(event_queue);
@@ -113,6 +114,7 @@ static VALUE run_main_loop(
 		free(cur_event);
 
 		cur_event = fh_min(event_queue);
+		running = rb_ivar_get(self, running_var_name);
 	}
 
 	return Qnil;
