@@ -52,8 +52,16 @@ def load_trace(filename)
   view.set_trace(filename)
 end
 
-opts = GetoptLong.new(
-                      ['--help',  '-h', GetoptLong::NO_ARGUMENT],
+def run_if_exists(file, &block)
+  if File.exist?(file)
+    block.call(file) 
+  else
+    puts "#{file} does not exist.  Quiting."
+    exit(-1)
+  end
+end
+
+opts = GetoptLong.new(['--help',  '-h', GetoptLong::NO_ARGUMENT],
                       ['--trace', '-t', GetoptLong::REQUIRED_ARGUMENT],
                       ['--live',  '-l', GetoptLong::REQUIRED_ARGUMENT])
 
@@ -62,9 +70,9 @@ opts.each do | opt, arg |
   when '--help'
     RDoc::usage
   when '--trace'
-    load_trace(arg) if File.exists?(arg)
+    run_if_exists(arg) { load_trace(arg) }
   when '--live'
-    load_live(arg) if File.exists?(arg)
+    run_if_exists(arg) { load_live(arg) }
   end
 end
 

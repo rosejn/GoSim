@@ -150,19 +150,14 @@ module GoSim
     class DataSet
       @@sets = {}
       @@off = false
-#      @@handlers = {}
 
       class << self
-
         def add_handler(key, &block)
           EventCast.instance.add_handler(key, block)
 
           if !@@sets.has_key?(key)
             DataSet.new(key)
           end
-
-#          @@handlers[key] ||= []
-#          @@handlers[key] << block
         end
 
         def [](set)
@@ -189,9 +184,6 @@ module GoSim
         DataSetWriter::instance.log(@name, args)  if !@@off
 
         EventCast.instance.publish(@name, *args)
-#        if @@handlers[@name]
-#          @@handlers[@name].each {|h| h.call(*args) }
-#        end
       end
     end #DataSet
 

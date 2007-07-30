@@ -33,6 +33,7 @@ module GoSim
       @live = false   # ie, from a trace file
 
       @reset_handlers = []
+      @renderers = []
 
       @ticks_per_sec = 2000
       @glade["ticks_per_sec"].value = @ticks_per_sec
@@ -89,6 +90,9 @@ module GoSim
     end
 
     def on_time_forward
+      # Needs to be replaced by a safe mutex - used by button callbacks to
+      # check if it is safe to start various tasks (mainly, calling this
+      # function)
       @forwarding = true
 
       if !@live
@@ -100,13 +104,33 @@ module GoSim
         end
       end
 
-      Thread.new do
+      # Start running the simulation from where we left off
+      sim_thread = Thread.new do
         @sim.run(@virt_time + @ticks_per_sec) 
       end
 
       @virt_time += @ticks_per_sec
       @cur_time.text = @virt_time.to_s
-      Gtk.main_iteration while Gtk.events_pending?
+
+      # Start a thread to handle GUI events while the simulation is running.
+      # Without this selections, button clicks, etc, will never register, and
+      # at worst play will hang.
+      gui_alive = true
+      gui_thread = Thread.new do
+        while gui_alive
+          Gtk.main_iteration  while Gtk.events_pending?
+          sleep 0.01
+        end
+      end        
+
+      # Wait for the simulation update to complete
+      sim_thread.join
+      # Kill the gui event thread 
+      gui_alive = false
+      gui_thread.join
+
+      # Render graphical updates that are based on state changes
+      @renderers.each { | renderer | renderer.call() }  unless @renderers.nil?
 
       @forwarding = false
     end
@@ -116,8 +140,6 @@ module GoSim
     end
 
     def on_time_play
-#      print "play button\n"
-
       @playing = !@playing
       if @playing
         @play_stop_lbl.text = "Stop"
@@ -151,6 +173,10 @@ module GoSim
 
     def add_reset_handler(&block)
       @reset_handlers << block
+    end
+
+    def add_render_controler(&block)
+      @renderers << block
     end
 
     def show_message(mesg, title = "Message")
