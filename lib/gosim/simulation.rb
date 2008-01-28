@@ -36,12 +36,6 @@ module GoSim
       @sim.unregister_entity(@sid)
     end
 
-    # Set a block of code to run after wait_time units of time.  If the
-    # is_periodic flag is set it will continue to run every wait_time units.
-    def set_timeout(wait_time, is_periodic = false, data = nil, method = nil, &block)
-      SimTimeout.new(wait_time, is_periodic, data, method || block)
-    end
-
     # Override the default inspect so entities with lots of state don't fill
     # the screen during debug.  Implement your own inspect method to print
     # useful information about your Entity.
@@ -57,8 +51,6 @@ module GoSim
   end
 
   class SimTimeout < Entity
-    include Base
-
     attr_reader :time, :is_periodic, :active
 
     def initialize(time, is_periodic, data, block)

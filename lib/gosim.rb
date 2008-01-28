@@ -16,7 +16,17 @@ rescue RuntimeError => e
 end
 
 module GoSim
-  MAX_INT = 2**31
+  #MAX_INT = 2**31
+
+  module Base
+
+  end
+
+  # We need a predefinition for Base - defined gosim/simulation
+  class Entity 
+    class SimTimeout < Entity
+    end
+  end
 
   module Base
     # TODO: Figure out what we want to do for a logging framework.
@@ -40,6 +50,13 @@ module GoSim
     def verbose
       @@log.level = Logger::DEBUG
     end
+
+    # Set a block of code to run after wait_time units of time.  If the
+    # is_periodic flag is set it will continue to run every wait_time units.
+    def set_timeout(wait_time, is_periodic = false, data = nil, method = nil, &block)
+      SimTimeout.new(wait_time, is_periodic, data, method || block)
+    end
+
   end
 end
 
