@@ -41,7 +41,7 @@ class Consumer < GoSim::Entity
   end
 end
 
-class Stoper < GoSim::Entity
+class Stopper < GoSim::Entity
   def initialize(time)
     super()
     set_timeout(time) do
@@ -147,7 +147,7 @@ class TestSimulation < Test::Unit::TestCase
 
   # This was broken in the C version for awhile.  Check for regression
   def test_stop
-    sim_timer = Stoper.new(9)
+    sim_timer = Stopper.new(9)
     timer = TimerOuter.new
     @sim.run(300)
     assert_equal(0, timer.timer_count)
